@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DeeKeep.Common</RootNamespace>
+    <NoWarn>$(NoWarn);EXTEXP0001</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Systemd" />
+    <PackageReference Include="TagLibSharp" />
+    <PackageReference Include="SkiaSharp" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Icône de l'application (copie de DeezerMusic\icon.ico) : marquage des jaquettes. -->
+    <EmbeddedResource Include="Audio\icon.ico" LogicalName="DeeKeep.Common.Audio.icon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DeeKeep.Contracts\DeeKeep.Contracts.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,6 @@
+[Unit]
+Description=DeeKeep — contrôle de santé des microservices
+
+[Service]
+Type=oneshot
+ExecStart=/opt/deekeep/bin/deekeep-health.sh

@@ -1,0 +1,9 @@
+[Unit]
+Description=DeeKeep — contrôle de santé toutes les 2 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+
+[Install]
+WantedBy=timers.target

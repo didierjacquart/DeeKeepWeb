@@ -1,0 +1,67 @@
+<mat-sidenav-container class="container" autosize>
+  <mat-sidenav class="sidebar" [mode]="mobile() ? 'over' : 'side'" [opened]="!mobile() || drawerOpen()"
+               (closedStart)="drawerOpen.set(false)" [fixedInViewport]="mobile()">
+    <nav class="nav" aria-label="Navigation principale">
+      <dk-app-logo class="logo" />
+
+      @for (item of main; track item.path) {
+        <a class="nav-btn" [routerLink]="item.path" routerLinkActive="active"><span class="ico">{{ item.icon }}</span>{{ item.label }}</a>
+      }
+
+      <button class="nav-group" (click)="toolsOpen.set(!toolsOpen())" [attr.aria-expanded]="toolsOpen()">
+        {{ toolsOpen() ? '▾' : '▸' }} Outils
+      </button>
+      @if (toolsOpen()) {
+        @for (item of tools; track item.path) {
+          <a class="nav-btn sub" [routerLink]="item.path" routerLinkActive="active"><span class="ico">{{ item.icon }}</span>{{ item.label }}</a>
+        }
+      }
+
+      @for (item of bottom; track item.path) {
+        <a class="nav-btn" [routerLink]="item.path" routerLinkActive="active">
+          <span class="ico">{{ item.icon }}</span>{{ item.label }}
+          @if (item.path === '/historique' && badges.history()) { <span class="badge">{{ badges.history() }}</span> }
+        </a>
+      }
+
+      <span class="dk-spacer"></span>
+
+      <div class="status">
+        <button class="status-line" (click)="jobsOpen.set(!jobsOpen())"
+                [matTooltip]="connectivity.lastError() ?? 'Tâches de fond et état de la liaison'">
+          <span class="dot" [class]="connectivity.state()"></span>
+          <span>{{ linkLabel() }}</span>
+        </button>
+        @if (queue.pending()) {
+          <span class="status-sub pending" matTooltip="Actions faites hors ligne, envoyées au retour de la connexion">
+            {{ queue.pending() }} action(s) en attente
+          </span>
+        }
+        @if (jobs.active().length) {
+          <button class="status-sub link" (click)="jobsOpen.set(true)">{{ jobs.active().length }} tâche(s) en cours</button>
+        }
+      </div>
+    </nav>
+  </mat-sidenav>
+
+  <mat-sidenav-content class="content">
+    @if (mobile()) {
+      <header class="topbar">
+        <button class="icon-btn" (click)="drawerOpen.set(true)" aria-label="Menu">☰</button>
+        <span class="topbar-title">{{ title() }}</span>
+        <span class="dk-spacer"></span>
+        <button class="icon-btn" (click)="jobsOpen.set(!jobsOpen())" aria-label="Tâches">
+          <span class="dot" [class]="connectivity.state()"></span>
+        </button>
+      </header>
+    }
+    <main class="main">
+      <router-outlet />
+    </main>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+
+@if (jobsOpen()) {
+  <dk-jobs-panel (closed)="jobsOpen.set(false)" />
+}
+<dk-player-bar />

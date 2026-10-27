@@ -1,0 +1,124 @@
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+type Query {
+  services: [ServiceHealth!]! @cost(weight: "10")
+  ping: Float!
+  jobs(
+    service: String
+    activeOnly: Boolean! = false
+    type: String
+    groupKey: String
+  ): [JobDto!]! @cost(weight: "10")
+  job(service: String!, id: UUID!): JobDto @cost(weight: "10")
+}
+
+type Mutation {
+  cancelJob(service: String!, id: UUID!): JobDto! @cost(weight: "10")
+  retryJob(service: String!, id: UUID!): JobDto! @cost(weight: "10")
+}
+
+type Subscription {
+  jobUpdated(service: String, type: String, groupKey: String): JobDto!
+  jobItem(jobId: UUID, type: String): JobItemEvent!
+}
+
+type EventLinkStatus {
+  producer: String!
+  connected: Boolean!
+  since: Float
+  lastError: String
+}
+
+type JobDto {
+  id: UUID!
+  service: String!
+  type: String!
+  title: String
+  status: JobStatus!
+  progress: Float!
+  done: Int!
+  failed: Int!
+  total: Int!
+  message: String
+  error: String
+  attempts: Int!
+  groupKey: String
+  payload: Any
+  result: Any
+  createdAt: Float!
+  updatedAt: Float!
+  startedAt: Float
+  finishedAt: Float
+}
+
+type JobItemEvent {
+  jobId: UUID!
+  type: String!
+  itemKey: String!
+  status: String!
+  message: String
+  data: Any
+}
+
+type ServiceHealth {
+  service: String!
+  reachable: Boolean!
+  error: String
+  info: ServiceInfo
+  eventsConnected: Boolean!
+}
+
+type ServiceInfo {
+  service: String!
+  version: String!
+  startedAt: Float!
+  workingSetBytes: Long!
+  managedHeapBytes: Long!
+  activeJobs: Int!
+  outboxPending: Int!
+  links: [EventLinkStatus!]!
+  tools: [ToolStatus!]!
+}
+
+type ToolStatus {
+  name: String!
+  available: Boolean!
+  version: String
+  path: String
+  detail: String
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+"The `Any` scalar type represents any valid GraphQL value."
+scalar Any @specifiedBy(url: "https://scalars.graphql.org/chillicream/any.html")
+
+"The `Long` scalar type represents a signed 64-bit integer."
+scalar Long
+  @specifiedBy(url: "https://scalars.graphql.org/chillicream/long.html")
+
+"The `UUID` scalar type represents a Universally Unique Identifier (UUID) as defined by RFC 9562."
+scalar UUID
+  @specifiedBy(url: "https://scalars.graphql.org/chillicream/uuid.html")
+
+"The purpose of the `cost` directive is to define a `weight` for GraphQL types, fields, and arguments. Static analysis can use these weights when calculating the overall cost of a query or response."
+directive @cost(
+  "The `weight` argument defines what value to add to the overall cost for every appearance, or possible appearance, of a type, field, argument, etc."
+  weight: String!
+) on
+  | SCALAR
+  | OBJECT
+  | FIELD_DEFINITION
+  | ARGUMENT_DEFINITION
+  | ENUM
+  | INPUT_FIELD_DEFINITION

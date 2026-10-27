@@ -1,0 +1,9 @@
+{
+  "/graphql": { "target": "http://127.0.0.1:5000", "ws": true, "secure": false },
+  "/auth": { "target": "http://127.0.0.1:5000", "secure": false },
+  "/media": { "target": "http://127.0.0.1:5000", "secure": false },
+  "/archive-media": { "target": "http://127.0.0.1:5000", "secure": false },
+  "/covers": { "target": "http://127.0.0.1:5000", "secure": false },
+  "/img": { "target": "http://127.0.0.1:5000", "secure": false },
+  "/preview": { "target": "http://127.0.0.1:5000", "secure": false }
+}

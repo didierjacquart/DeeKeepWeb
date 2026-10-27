@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <RootNamespace>DeeKeep.Downloader</RootNamespace>
+    <UserSecretsId>deekeep-downloader</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\BuildingBlocks\DeeKeep.Common\DeeKeep.Common.csproj" />
+  </ItemGroup>
+</Project>

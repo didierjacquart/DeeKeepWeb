@@ -1,0 +1,82 @@
+@if (player.current(); as track) {
+  @if (player.expanded()) {
+    <section class="panel" aria-label="Lecteur">
+      <div class="panel-head">
+        <span class="dk-overline">Lecteur</span>
+        <span class="dk-faint">Titre {{ player.index() + 1 }} / {{ player.queue().length }}</span>
+        <span class="dk-spacer"></span>
+        <button class="icon-btn" (click)="player.expanded.set(false)" matTooltip="Replier">▾</button>
+      </div>
+      <div class="panel-body">
+        <div class="now">
+          @if (track.cover) {
+            <img class="big-cover" [src]="track.cover" alt="" />
+          } @else {
+            <div class="big-cover placeholder">♪</div>
+          }
+          <div class="meta">
+            <div class="title">{{ track.title }}</div>
+            <div class="dk-muted">{{ track.artist }}</div>
+            @if (track.album) { <div class="dk-faint">{{ track.album }}</div> }
+            @if (track.context) { <div class="context">{{ track.context }}</div> }
+            @if (player.pausedByPreview()) { <div class="dk-chip info">En pause : un extrait est en cours d'écoute</div> }
+            @if (player.error()) { <div class="dk-error-text">{{ player.error() }}</div> }
+          </div>
+        </div>
+        <div class="eq">
+          <canvas #eq></canvas>
+          <div class="eq-labels">
+            @for (b of bands; track b) { <span>{{ b }}</span> }
+          </div>
+        </div>
+        <ol class="queue">
+          @for (t of player.queue(); track t.id; let i = $index) {
+            <li [class.current]="i === player.index()" (click)="player.playAt(i)">
+              <span class="q-title">{{ t.title }}</span>
+              <span class="dk-faint">{{ t.artist }}</span>
+            </li>
+          }
+        </ol>
+      </div>
+    </section>
+  }
+
+  <div class="bar">
+    <div class="track" (click)="player.expanded.set(!player.expanded())">
+      @if (track.cover) {
+        <img class="dk-cover" [src]="track.cover" alt="" />
+      } @else {
+        <div class="dk-cover">♪</div>
+      }
+      <div class="text">
+        <span class="title">{{ track.title }}</span>
+        <span class="dk-faint">{{ track.artist }}</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="icon-btn" (click)="player.previous()" [disabled]="!player.hasPrevious() && player.position() < 3" matTooltip="Précédent (P)">⏮</button>
+      <button class="icon-btn active play" (click)="player.toggle()" [matTooltip]="player.playing() ? 'Pause (Espace)' : 'Lecture (Espace)'">
+        {{ player.buffering() ? '⏳' : player.playing() ? '⏸' : '▶' }}
+      </button>
+      <button class="icon-btn" (click)="player.next()" [disabled]="!player.hasNext()" matTooltip="Suivant (N)">⏭</button>
+    </div>
+
+    <div class="seek">
+      <span class="time">{{ (dragging() ?? player.position()) | duration }}</span>
+      <div #bar class="groove" (pointerdown)="seekFromPointer($event, bar)">
+        <div class="fill" [style.width.%]="progressPercent()"></div>
+      </div>
+      <span class="time">{{ player.duration() | duration }}</span>
+    </div>
+
+    <div class="extras dk-hide-mobile">
+      <input type="range" min="0" max="100" [value]="player.volume() * 100" (input)="onVolume($event)" aria-label="Volume" />
+      @if (offline.supported) {
+        <button class="icon-btn" [class.active]="offline.isPinned(track.src)" (click)="togglePin()"
+                [matTooltip]="offline.isPinned(track.src) ? 'Disponible hors ligne — retirer de l\'appareil' : 'Garder sur l\'appareil pour l\'écoute hors ligne'">⤓</button>
+      }
+      <button class="icon-btn" (click)="player.close()" matTooltip="Fermer le lecteur">✕</button>
+    </div>
+  </div>
+}

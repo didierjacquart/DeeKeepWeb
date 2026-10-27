@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/DeeKeep.Common/DeeKeep.Common.csproj" />
+    <Project Path="src/BuildingBlocks/DeeKeep.Contracts/DeeKeep.Contracts.csproj" />
+  </Folder>
+  <Folder Name="/src/Gateway/">
+    <Project Path="src/Gateway/DeeKeep.Gateway/DeeKeep.Gateway.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/">
+    <Project Path="src/Services/DeeKeep.Catalog/DeeKeep.Catalog.csproj" />
+    <Project Path="src/Services/DeeKeep.Downloader/DeeKeep.Downloader.csproj" />
+    <Project Path="src/Services/DeeKeep.Library/DeeKeep.Library.csproj" />
+    <Project Path="src/Services/DeeKeep.Quality/DeeKeep.Quality.csproj" />
+    <Project Path="src/Services/DeeKeep.Storage/DeeKeep.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DeeKeep.Tests/DeeKeep.Tests.csproj" />
+  </Folder>
+</Solution>

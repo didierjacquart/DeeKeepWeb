@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageVersion Include="Dapper" Version="2.1.89" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
+    <PackageVersion Include="HotChocolate.AspNetCore" Version="16.7.1" />
+    <PackageVersion Include="HotChocolate.Types.Analyzers" Version="16.7.1" />
+    <PackageVersion Include="HotChocolate.Data" Version="16.7.1" />
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <PackageVersion Include="TagLibSharp" Version="2.3.0" />
+    <PackageVersion Include="SkiaSharp" Version="4.153.1" />
+    <PackageVersion Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="4.153.1" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+  </ItemGroup>
+</Project>

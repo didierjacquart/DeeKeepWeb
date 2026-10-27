@@ -1,0 +1,7 @@
+[Unit]
+Description=DeeKeep (tous les microservices)
+Wants=deekeep@Catalog.service deekeep@Library.service deekeep@Downloader.service deekeep@Quality.service deekeep@Storage.service deekeep@Gateway.service
+After=network-online.target
+
+[Install]
+WantedBy=multi-user.target

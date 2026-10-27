@@ -1,0 +1,10 @@
+[Unit]
+Description=DeeKeep — sauvegarde des bases SQLite
+
+[Service]
+Type=oneshot
+User=deekeep
+Group=deekeep
+Nice=15
+IOSchedulingClass=idle
+ExecStart=/opt/deekeep/bin/deekeep-backup.sh

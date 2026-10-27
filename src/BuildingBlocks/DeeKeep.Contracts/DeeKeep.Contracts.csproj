@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>DeeKeep.Contracts</RootNamespace>
+  </PropertyGroup>
+</Project>

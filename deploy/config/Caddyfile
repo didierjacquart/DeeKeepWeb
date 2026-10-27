@@ -1,0 +1,44 @@
+# Frontal HTTPS de DeeKeep. Le service worker (application installable,
+# fonctionnement hors ligne) exige HTTPS : choisir UNE des deux variantes.
+#
+# 1) Nom de domaine public pointant sur la box (certificat Let's Encrypt automatique) :
+#      musique.example.fr {
+#          import deekeep
+#      }
+#
+# 2) Réseau local uniquement (autorité interne de Caddy ; installer son
+#    certificat racine /var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt
+#    sur le téléphone et l'ordinateur) :
+#      deekeep.local, 192.168.1.50 {
+#          tls internal
+#          import deekeep
+#      }
+
+(deekeep) {
+	encode zstd gzip
+	# Les flux audio ne doivent pas être compressés ni mis en tampon.
+	@media path /media/* /archive-media/* /preview/*
+	reverse_proxy @media 127.0.0.1:5000 {
+		flush_interval -1
+	}
+	reverse_proxy 127.0.0.1:5000 {
+		# WebSocket des abonnements GraphQL : connexions longues.
+		stream_timeout 24h
+		stream_close_delay 5m
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+	@static path *.js *.css *.woff2 *.svg *.png
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
+	header /ngsw.json Cache-Control "no-cache"
+}
+
+{$DEEKEEP_SITE:deekeep.local} {
+	tls internal
+	import deekeep
+}

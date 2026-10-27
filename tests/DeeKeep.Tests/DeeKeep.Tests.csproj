@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\DeeKeep.Common\DeeKeep.Common.csproj" />
+    <ProjectReference Include="..\..\src\Services\DeeKeep.Catalog\DeeKeep.Catalog.csproj" />
+    <ProjectReference Include="..\..\src\Services\DeeKeep.Library\DeeKeep.Library.csproj" />
+    <ProjectReference Include="..\..\src\Services\DeeKeep.Downloader\DeeKeep.Downloader.csproj" />
+    <ProjectReference Include="..\..\src\Services\DeeKeep.Quality\DeeKeep.Quality.csproj" />
+    <ProjectReference Include="..\..\src\Services\DeeKeep.Storage\DeeKeep.Storage.csproj" />
+    <ProjectReference Include="..\..\src\Gateway\DeeKeep.Gateway\DeeKeep.Gateway.csproj" />
+  </ItemGroup>
+</Project>
