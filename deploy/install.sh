@@ -27,7 +27,8 @@ apt-get install -y -qq ffmpeg libchromaprint-tools sqlite3 curl unzip ca-certifi
 echo "== Runtime ASP.NET Core $DOTNET_CHANNEL"
 if ! /usr/share/dotnet/dotnet --list-runtimes 2>/dev/null | grep -q "Microsoft.AspNetCore.App $DOTNET_CHANNEL"; then
     curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
-    sh /tmp/dotnet-install.sh --channel "$DOTNET_CHANNEL" --runtime aspnetcore --install-dir /usr/share/dotnet --architecture "$ARCH"
+    # Script bash (tableaux, redirections <<<) : sh, qui est dash sous Debian, le refuse.
+    bash /tmp/dotnet-install.sh --channel "$DOTNET_CHANNEL" --runtime aspnetcore --install-dir /usr/share/dotnet --architecture "$ARCH"
     ln -sf /usr/share/dotnet/dotnet /usr/local/bin/dotnet
 fi
 
