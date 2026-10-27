@@ -22,7 +22,9 @@ esac
 
 echo "== Paquets système"
 apt-get update -qq
-apt-get install -y -qq ffmpeg libchromaprint-tools sqlite3 curl unzip ca-certificates caddy >/dev/null
+# ICU, exigée par le runtime .NET ; le nom du paquet porte sa version (libicu72, libicu76…).
+ICU=$(apt-cache pkgnames libicu | grep -E '^libicu[0-9]+$' | sort -V | tail -n 1)
+apt-get install -y -qq ffmpeg libchromaprint-tools sqlite3 curl unzip ca-certificates caddy "${ICU:-libicu-dev}" >/dev/null
 
 echo "== Runtime ASP.NET Core $DOTNET_CHANNEL"
 if ! /usr/share/dotnet/dotnet --list-runtimes 2>/dev/null | grep -q "Microsoft.AspNetCore.App $DOTNET_CHANNEL"; then
