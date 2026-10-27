@@ -129,6 +129,18 @@ export class QualityPage {
     return job.total > 0 ? Math.min(1, (job.done + job.failed) / job.total) : null;
   });
 
+  /** Retéléchargements en cours : une barre globale, la colonne Statut pouvant être hors écran. */
+  readonly redownloadSummary = computed(() => {
+    const active = this.redownloadJobs().filter(isActive);
+    if (active.length === 0) return null;
+    const all = this.redownloadJobs().filter(j => active.some(a => a.groupKey && a.groupKey === j.groupKey) || isActive(j));
+    const finished = all.length - active.length;
+    const running = active.find(j => j.status !== 'QUEUED');
+    const value = (finished + active.reduce((s, j) => s + (j.status === 'QUEUED' ? 0 : j.progress), 0)) / all.length;
+    const detail = running ? `${running.title} — ${running.message ?? 'Initialisation…'}` : 'En attente…';
+    return { value: Math.min(1, value), label: `Retéléchargement ${finished + 1} / ${all.length} : ${detail}` };
+  });
+
   readonly statusLine = computed(() => {
     const job = this.scanJob();
     if (job && isActive(job)) return job.status === 'QUEUED' ? 'Analyse en attente…' : job.message ?? 'Analyse en cours…';

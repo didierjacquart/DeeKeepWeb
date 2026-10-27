@@ -51,6 +51,11 @@
     <dk-progress [value]="progress()" [label]="null" />
   }
 
+  @if (redownloadSummary(); as rd) {
+    <dk-progress [value]="rd.value" [label]="null" />
+    <p class="status-line">{{ rd.label }} ({{ (rd.value * 100).toFixed(0) }} %)</p>
+  }
+
   <div class="dk-filters">
     <span>Afficher :</span>
     @for (d of defects; track d.id) {

@@ -21,11 +21,11 @@
 	reverse_proxy @media 127.0.0.1:5000 {
 		flush_interval -1
 	}
-	reverse_proxy 127.0.0.1:5000 {
-		# WebSocket des abonnements GraphQL : connexions longues.
-		stream_timeout 24h
-		stream_close_delay 5m
-	}
+	# WebSocket des abonnements GraphQL : pas de stream_timeout ni de
+	# stream_close_delay, absents du Caddy 2.6 de Debian. Les connexions restent
+	# ouvertes sans limite ; un rechargement de Caddy les coupe, et le client
+	# se reconnecte de lui-même.
+	reverse_proxy 127.0.0.1:5000
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options nosniff
