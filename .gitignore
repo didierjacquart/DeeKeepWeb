@@ -487,3 +487,6 @@ web/node_modules/
 web/dist/
 web/.angular/
 src/Gateway/DeeKeep.Gateway/wwwroot/
+
+# Scripts d'exploitation du serveur : la règle « [Bb]in/ » plus haut les excluait.
+!deploy/bin/
