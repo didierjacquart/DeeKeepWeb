@@ -70,4 +70,4 @@ Push-Location (Split-Path $stage)
 try { tar -czf $archive (Split-Path $stage -Leaf) } finally { Pop-Location }
 Write-Host ""
 Write-Host "Paquet prêt : $archive"
-Write-Host "Sur le serveur : tar xzf $(Split-Path $archive -Leaf) && cd $(Split-Path $stage -Leaf) && sudo ./install.sh"
+Write-Host "Sur le serveur : tar xzf $(Split-Path $archive -Leaf) && cd $(Split-Path $stage -Leaf) && sudo sh ./install.sh"

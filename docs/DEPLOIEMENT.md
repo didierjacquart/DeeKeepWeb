@@ -38,8 +38,11 @@ scripts, modèle de configuration). `-Runtime linux-x64` pour un PC.
 scp deploy/out/deekeep-*.tar.gz pi@serveur:
 ssh pi@serveur
 tar xzf deekeep-*.tar.gz && cd deekeep-*/
-sudo ./install.sh
+sudo sh ./install.sh
 ```
+
+`sh` explicite : le paquet est construit sous Windows, dont le `tar` ne
+conserve pas le bit d'exécution des scripts.
 
 Le script installe ffmpeg, fpcalc (Chromaprint), sqlite3, Caddy, le runtime
 ASP.NET Core 10, yt-dlp et Deno, crée l'utilisateur `deekeep`, les dossiers

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Installation / mise à jour de DeeKeep sur un serveur Debian ou Raspberry Pi OS
 # (ARM64 ou x64). À lancer en root depuis le dossier du paquet décompressé :
-#     sudo ./install.sh
+#     sudo sh ./install.sh
+# (« sh » explicite : le tar de Windows ne conserve pas le bit d'exécution.)
 # Une mise à jour conserve /etc/deekeep (configuration, secrets) et /var/lib/deekeep (bases).
 set -eu
 
