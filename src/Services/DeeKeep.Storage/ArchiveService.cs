@@ -1,4 +1,4 @@
-using System.Diagnostics;
+
 using DeeKeep.Common.Audio;
 using DeeKeep.Common.Events;
 using DeeKeep.Common.Files;
@@ -27,7 +27,7 @@ public sealed class ArchiveLocks
 public sealed class ArchiveEventBatch(EventLog events, string reason)
 {
     private readonly List<string> _paths = [];
-    private readonly Stopwatch _since = Stopwatch.StartNew();
+    private readonly System.Diagnostics.Stopwatch _since = System.Diagnostics.Stopwatch.StartNew();
 
     public void Add(string path)
     {

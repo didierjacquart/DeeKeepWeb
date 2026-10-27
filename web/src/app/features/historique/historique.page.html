@@ -1,0 +1,72 @@
+<section class="dk-page">
+  <h1 class="dk-page-title">Historique d'utilisation</h1>
+
+  <div class="tabs" role="tablist">
+    <button role="tab" [attr.aria-selected]="tab() === 'searches'" [class.active]="tab() === 'searches'" (click)="tab.set('searches')">Recherches<span class="dk-hide-mobile"> effectuées</span> ({{ searches().length }})</button>
+    <button role="tab" [attr.aria-selected]="tab() === 'downloads'" [class.active]="tab() === 'downloads'" (click)="tab.set('downloads')">Téléchargements<span class="dk-hide-mobile"> réussis</span> ({{ history().length }})</button>
+  </div>
+
+  @if (stale()) { <p class="dk-help dk-error-text">Hors ligne : historique servi par le cache local.</p> }
+
+  @if (tab() === 'searches') {
+    <div class="dk-actions">
+      <span class="dk-spacer"></span>
+      <button class="danger-btn" [disabled]="!searches().length" (click)="clearSearches()">Vider les recherches</button>
+    </div>
+    <div class="dk-table">
+      <div class="dk-thead g-search" role="row">
+        <span (click)="toggleSearchSort()" [class.sorted]="searchSort()">Recherche{{ searchSort() === 'asc' ? ' ▴' : searchSort() === 'desc' ? ' ▾' : '' }}</span>
+        <span class="dk-hide-mobile">Catégorie</span>
+        <span>Jaquette</span>
+        <span>Action</span>
+      </div>
+      @for (s of shownSearches(); track s.query) {
+        <div class="dk-row g-search">
+          <span class="q" [matTooltip]="s.query">{{ s.query }}</span>
+          <span class="dk-hide-mobile dk-faint">Recherche Globale</span>
+          <span>
+            @if (coverOfSearch(s.query); as src) { <img class="dk-cover thumb" [src]="src" alt="" loading="lazy" /> }
+            @else { <span class="dk-cover thumb">{{ coverOfSearch(s.query) === undefined ? '⏳' : '♪' }}</span> }
+          </span>
+          <span class="acts">
+            <button class="primary-btn small" (click)="relaunch(s.query)">Relancer</button>
+            <button class="icon-btn" (click)="deleteSearch(s.query)" aria-label="Supprimer cette recherche" matTooltip="Retirer de l'historique">✕</button>
+          </span>
+        </div>
+      } @empty {
+        <div class="dk-empty">{{ loading() ? 'Chargement…' : 'Aucune recherche.' }}</div>
+      }
+    </div>
+  } @else {
+    <div class="dk-actions">
+      <span class="dk-spacer"></span>
+      <button class="accent-btn" matTooltip="Retirer de l'historique les téléchargements dont le fichier n'existe plus sur le disque" (click)="purge()">Purger les fichiers introuvables</button>
+      <button class="danger-btn" matTooltip="Retirer toutes les entrées de l'historique (les fichiers du disque sont conservés)" [disabled]="!history().length" (click)="clear()">Vider l'historique</button>
+    </div>
+    <div class="dk-table">
+      <div class="dk-thead g-dl" role="row">
+        <span (click)="sortBy('title')" [class.sorted]="sort()?.key === 'title'">Titre{{ mark('title') }}</span>
+        <span class="dk-hide-mobile" (click)="sortBy('artist')" [class.sorted]="sort()?.key === 'artist'">Artiste{{ mark('artist') }}</span>
+        <span class="dk-hide-mobile" (click)="sortBy('album')" [class.sorted]="sort()?.key === 'album'">Album{{ mark('album') }}</span>
+        <span class="dk-hide-mobile" (click)="sortBy('path')" [class.sorted]="sort()?.key === 'path'">Chemin local{{ mark('path') }}</span>
+        <span>Jaquette</span>
+        <span>Écoute</span>
+      </div>
+      @for (e of shownDownloads(); track e.path) {
+        <div class="dk-row g-dl" [class.dim]="!e.onDisk" (dblclick)="play(e)">
+          <span [matTooltip]="e.title ?? ''">{{ e.title }}<span class="dk-cell-sub dk-hide-desktop">{{ e.artist }}</span></span>
+          <span class="dk-hide-mobile">{{ e.artist }}</span>
+          <span class="dk-hide-mobile">{{ e.album }}</span>
+          <span class="dk-hide-mobile path" [matTooltip]="e.path">{{ e.path }}</span>
+          <span>
+            @if (cover(e.coverSha1); as src) { <img class="dk-cover thumb zoomable" [src]="src" alt="Jaquette" loading="lazy" matTooltip="Cliquer pour agrandir" (click)="zoom(e)" /> }
+            @else { <span class="dk-cover thumb">♪</span> }
+          </span>
+          <span><button class="play" [disabled]="!e.onDisk" matTooltip="Écouter ce titre dans le lecteur" (click)="play(e)" aria-label="Écouter">▶</button></span>
+        </div>
+      } @empty {
+        <div class="dk-empty">{{ loading() ? 'Chargement…' : 'Aucun téléchargement dans l\'historique.' }}</div>
+      }
+    </div>
+  }
+</section>

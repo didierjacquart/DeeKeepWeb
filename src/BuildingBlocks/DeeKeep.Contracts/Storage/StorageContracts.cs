@@ -60,6 +60,11 @@ public sealed record ArchiveRootRequest(string? Root);
 
 public sealed record ArchiveRequest(IReadOnlyList<string> DbPaths, string? BatchId = null);
 
+public static class ArchiveDefaults
+{
+    public const string Prefix = "deekeep/";
+}
+
 public static class StorageJobTypes
 {
     public const string Archive = "archive.upload";

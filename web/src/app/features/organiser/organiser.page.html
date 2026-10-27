@@ -1,0 +1,145 @@
+<section class="dk-page org">
+  <h1 class="dk-page-title">Organiser la bibliothèque</h1>
+  <p class="dk-help">
+    Range les fichiers déjà présents selon leurs tags, comme le fait le téléchargement, en réunissant le plus de titres possible sous un même artiste.
+    L'analyse ne modifie rien : le plan ci-dessous n'est appliqué qu'après validation, dossier par dossier ou fichier par fichier.
+  </p>
+
+  <div class="folder-line">
+    <span class="folder" [matTooltip]="session()?.root || defaultRoot()">Dossier analysé : {{ session()?.root || defaultRoot() || '—' }}</span>
+    <span class="dk-spacer"></span>
+    <button class="control-btn" [attr.aria-pressed]="options().filtersOpen" (click)="setOption('filtersOpen', !options().filtersOpen)">
+      Filtres {{ options().filtersOpen ? '▴' : '▾' }}
+    </button>
+    <button class="control-btn" (click)="chooseFolder()" [disabled]="busy()">Modifier le dossier</button>
+  </div>
+
+  @if (!options().filtersOpen) {
+    <p class="dk-help summary">Filtres : {{ filtersSummary() || 'voir le volet' }}</p>
+  } @else {
+    <div class="dk-card filters">
+      <div class="grid">
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="options().artist" (change)="setOption('artist', !options().artist)" /> Sous-dossier par Artiste</label>
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="options().album" (change)="setOption('album', !options().album)" /> Sous-dossier par Album</label>
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="options().rename" (change)="setOption('rename', !options().rename)" /> Renommer les fichiers</label>
+        <label class="dk-check" matTooltip="Un dossier dont le nom est celui de l'album de ses fichiers (« Footloose », « Dirty Dancing », « Zen 2 ») est laissé intact dès que cet album est une musique de film, ou qu'il réunit au moins trois artistes dont aucun ne domine : le ranger par artiste l'éparpillerait en autant de dossiers d'un seul titre. Un dossier de genre ou un fourre-tout (« CD1 », « Various »), dont les albums diffèrent, reste rangé par artiste — de même que le best-of d'un artiste unique, invités compris.">
+          <input type="checkbox" class="dk-check" [checked]="options().keepAlbums" (change)="setOption('keepAlbums', !options().keepAlbums)" /> Préserver musiques de film et compilations</label>
+        <label class="dk-check" matTooltip="Quand plusieurs copies d'un même titre visent le même emplacement, une seule est conservée — le meilleur débit, puis le fichier le plus complet — et rangée selon les règles habituelles (dossier de l'artiste, ou « Divers » si son artiste n'atteint pas le seuil). Les autres sont placées dans la corbeille de la bibliothèque. Les albums préservés ne sont pas concernés : un titre peut figurer à la fois dans une bande originale et chez son artiste.">
+          <input type="checkbox" class="dk-check" [checked]="options().dedup" (change)="setOption('dedup', !options().dedup)" /> Ne garder qu'un exemplaire</label>
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="options().removeEmpty" (change)="setOption('removeEmpty', !options().removeEmpty)" /> Supprimer les dossiers vides</label>
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="options().reportUntagged" (change)="setOption('reportUntagged', !options().reportUntagged)" /> Signaler les fichiers sans tags</label>
+      </div>
+
+      <div class="pattern" [class.off]="!options().rename">
+        <input #patternInput class="dk-input" list="dk-presets" [value]="options().pattern" [disabled]="!options().rename"
+               (input)="setOption('pattern', patternInput.value)" aria-label="Motif de nommage"
+               matTooltip="Motif de nommage. Les balises %…% sont remplacées par les tags du fichier ; une balise vide disparaît du nom. Les balises « _00 » forcent deux chiffres : %piste_00% donne 07." />
+        <datalist id="dk-presets">@for (p of nameTags()?.presets ?? []; track p) { <option [value]="p"></option> }</datalist>
+        <button class="control-btn" [matMenuTriggerFor]="tagMenu" [disabled]="!options().rename">Insérer une balise ▾</button>
+        <mat-menu #tagMenu="matMenu">
+          @for (c of nameTags()?.categories ?? []; track c.name) {
+            <button mat-menu-item [matMenuTriggerFor]="sub">{{ c.name }}</button>
+            <mat-menu #sub="matMenu">
+              @for (t of c.items; track t.token) { <button mat-menu-item (click)="insertToken(t.token)">{{ t.label }}<span class="tok">{{ t.token }}</span></button> }
+            </mat-menu>
+          }
+        </mat-menu>
+      </div>
+      <p class="preview" [class.warn]="preview()?.warning">{{ preview()?.text }}</p>
+
+      <div class="divers">
+        <label class="dk-check" [class.off]="!options().artist" matTooltip="Le décompte porte sur l'artiste principal : « Inna » et « Inna Feat. Flo Rida » comptent — et se rangent — ensemble. La règle joue dans les deux sens : le dossier « Divers » est analysé comme le reste de la bibliothèque, et un titre qui s'y trouve en ressort dès que son artiste atteint le seuil, en comptant les titres que contient déjà son dossier.">
+          <input type="checkbox" class="dk-check" [checked]="options().divers" [disabled]="!options().artist" (change)="setOption('divers', !options().divers)" />
+          Regrouper dans « Divers » les artistes de moins de
+        </label>
+        <input type="number" class="dk-input min" min="2" max="10" [value]="options().diversMin" [disabled]="!options().artist || !options().divers"
+               (input)="setOption('diversMin', +$any($event.target).value)" aria-label="Seuil Divers" />
+        <span class="dk-help">titres (option enregistrée dans les Paramètres)</span>
+      </div>
+
+      <div class="pending">
+        <button class="control-btn" (click)="checkPending()" [disabled]="!plan() || busy()">Cocher ce qui est à faire</button>
+        <span class="dk-help">décoche les fichiers déjà en place dont les tags sont complets</span>
+      </div>
+    </div>
+  }
+
+  <div class="dk-actions bar">
+    <button class="control-btn" (click)="checkAll(true)" [disabled]="entries().length === 0 || busy()">Tout cocher</button>
+    <button class="control-btn" (click)="checkAll(false)" [disabled]="entries().length === 0 || busy()">Tout décocher</button>
+    <button class="control-btn" (click)="toggleExpandAll()" [disabled]="entries().length === 0">{{ allCollapsed() ? 'Tout déplier' : 'Tout replier' }}</button>
+    <span class="dk-spacer"></span>
+    @if (resume(); as r) { <button class="control-btn" (click)="reopenReview()" [disabled]="busy()">Reprendre la revue des tags</button> }
+    <button class="control-btn" (click)="lookupTags()" [disabled]="busy() || lookupBusy() || !plan() || lookupIndices().length === 0">Compléter les tags</button>
+    <button class="control-btn" (click)="findDuplicates()" [disabled]="busy() || entries().length < 2">Rechercher les doublons</button>
+    @if (scanning()) {
+      <button class="accent-btn" (click)="stopScan()">Arrêter l'analyse</button>
+    } @else {
+      <button class="accent-btn" (click)="analyze()" [disabled]="busy()">Analyser</button>
+    }
+    @if (applying()) {
+      <button class="accent-btn" (click)="stopApply()">Arrêter</button>
+    }
+    <button class="primary-btn" (click)="apply()" [disabled]="!canApply()">Organiser</button>
+  </div>
+
+  <div class="status-line">
+    <span class="status" role="status">{{ statusText() }}</span>
+    <span class="dk-spacer"></span>
+    <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="hideInPlace()" (change)="hideInPlace.set(!hideInPlace())" /> Masquer ce qui est déjà en place</label>
+  </div>
+  @if (busy() || progress() !== null && scanning()) { <dk-progress [value]="progress()" /> }
+
+  @if (result(); as text) {
+    <div class="dk-card result">
+      <pre>{{ text }}</pre>
+      <button class="control-btn" (click)="dismissResult()">Fermer</button>
+    </div>
+  }
+
+  <div class="dk-table tree">
+    <div class="dk-thead head dk-hide-mobile"><span>Dossier / Fichier</span><span>Artiste</span><span>Album</span><span>Action</span></div>
+    @if (visible().length <= 1 && entries().length === 0) {
+      <div class="dk-empty">
+        @if (!loaded()) { Chargement… }
+        @else if (scanning()) { Analyse en cours… }
+        @else { Aucune analyse : choisissez un dossier et lancez « Analyser ». }
+      </div>
+    } @else {
+      <cdk-virtual-scroll-viewport itemSize="52" minBufferPx="520" maxBufferPx="1040" class="viewport">
+        <div *cdkVirtualFor="let n of visible(); trackBy: trackNode" class="dk-row node" [class.dir]="n.kind === 'dir'" [class.dim]="n.kind === 'file' && (n.row?.status === 'inplace' || n.row?.status === 'album')"
+             [style.--depth]="n.depth" (dblclick)="n.kind === 'file' && play(n.entry)" (contextmenu)="n.kind === 'file' && openMenu($event, n.entry)">
+          @if (n.kind === 'dir') {
+            <span class="c-name">
+              <button class="twisty" (click)="toggleDirOpen(n.key)" [attr.aria-label]="collapsed().has(n.key) ? 'Déplier' : 'Replier'">{{ collapsed().has(n.key) ? '▸' : '▾' }}</button>
+              @if (dirState(n); as st) {
+                @if (st !== 'empty') {
+                  <input type="checkbox" class="dk-check" [checked]="st === 'all'" [indeterminate]="st === 'some'" (change)="toggleDir(n)" [attr.aria-label]="'Cocher ' + n.name" />
+                }
+              }
+              <span class="label dir-name" [matTooltip]="n.name">{{ n.name }}</span>
+            </span>
+            <span class="c-artist"></span><span class="c-album"></span>
+            <span class="c-action album-note">{{ n.note }}</span>
+          } @else {
+            <span class="c-name">
+              <span class="twisty"></span>
+              <input type="checkbox" class="dk-check" [checked]="isChecked(n.entry.index)" (change)="toggleFile(n.entry)" [attr.aria-label]="'Cocher ' + n.entry.name" />
+              <button class="play" (click)="play(n.entry)" aria-label="Écouter">▶</button>
+              <span class="label" [matTooltip]="n.entry.path">{{ n.entry.name }}</span>
+            </span>
+            <span class="c-artist">{{ n.entry.artist }}</span>
+            <span class="c-album">{{ n.entry.album }}</span>
+            <span class="c-action" [class]="'c-action ' + actionClass(n)" [matTooltip]="n.row?.tooltip ?? ''">{{ n.row?.action }}</span>
+          }
+        </div>
+      </cdk-virtual-scroll-viewport>
+    }
+  </div>
+
+  <span #ctxAnchor class="ctx-anchor" #ctxTrigger="matMenuTrigger" [matMenuTriggerFor]="ctxMenu"></span>
+  <mat-menu #ctxMenu="matMenu">
+    <button mat-menu-item (click)="ctxEntry() && play(ctxEntry()!)">Écouter dans DeeKeep</button>
+    <button mat-menu-item (click)="copyPath(ctxEntry())">Copier le chemin</button>
+  </mat-menu>
+</section>

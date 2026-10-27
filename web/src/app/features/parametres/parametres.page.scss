@@ -1,0 +1,10 @@
+.settings { max-width: 960px; }
+.form { display: flex; flex-direction: column; gap: 16px; }
+.row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; font-size: 13px; color: var(--dk-muted); }
+.inline { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.narrow { width: 72px; }
+.path { color: var(--dk-text); word-break: break-all; }
+.sub { font-size: 16px; color: var(--dk-muted); margin: 8px 0 0; }
+.tables { display: flex; flex-wrap: wrap; gap: 6px; }
+code { background: var(--dk-charcoal); padding: 1px 6px; border-radius: 4px; }
+@media (max-width: 899px) { .row > .dk-select, .row > .inline { width: 100%; } .dk-select { min-height: 40px; } }

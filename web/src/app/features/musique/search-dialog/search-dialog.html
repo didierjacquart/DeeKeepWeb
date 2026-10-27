@@ -1,0 +1,164 @@
+<div class="sd" (keydown.escape)="onEscape($event)">
+  <div class="sd-head">
+    <h2 class="sd-title">Rechercher et ajouter des pistes</h2>
+    <label class="sd-label" for="sd-q">Rechercher par morceau, artiste, album ou playlist :</label>
+
+    <div class="sd-row">
+      <div class="sd-field">
+        <input id="sd-q" #searchInput class="dk-input" type="search" autocomplete="off" enterkeyhint="search"
+               placeholder="Saisissez un titre, un artiste, ou collez un lien de playlist..."
+               [value]="query()" (input)="setQuery($event)" (focus)="openHistory()" (click)="openHistory()" (blur)="closeHistorySoon()"
+               (keydown.enter)="search()" />
+        @if (historyOpen()) {
+          <div class="sd-history" (mousedown)="$event.preventDefault()">
+            <div class="sd-history-head">
+              <strong>Dernières recherches</strong>
+              <button class="icon-btn" type="button" matTooltip="Effacer les dernières recherches" aria-label="Effacer les dernières recherches" (click)="clearHistory($event)">🗑</button>
+            </div>
+            @for (entry of recent(); track entry.query) {
+              <div class="sd-history-row" role="button" tabindex="0" (click)="search(entry.query)" (keydown.enter)="search(entry.query)">
+                <span class="sd-thumb sd-thumb-sm">
+                  @if (covers().get(entry.query); as url) { <img [src]="img(url)" alt="" loading="lazy" /> } @else { 🎵 }
+                </span>
+                <span class="sd-history-text">
+                  <span class="sd-history-q">{{ entry.query }}</span>
+                  <span class="sd-history-sub">Recherche</span>
+                </span>
+                <button class="icon-btn" type="button" matTooltip="Retirer cette recherche" aria-label="Retirer cette recherche" (click)="removeSearch(entry, $event)">✕</button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+      <select class="dk-select sd-kind" aria-label="Type de recherche" [value]="kind()" (change)="setKind($event)">
+        @for (k of kinds; track k.value) { <option [value]="k.value" [selected]="k.value === kind()">{{ k.label }}</option> }
+      </select>
+      <button class="accent-btn" type="button" [disabled]="loading() || !online() || !query().trim()" (click)="search()">{{ loading() ? 'Recherche...' : 'Rechercher' }}</button>
+    </div>
+
+    <div class="sd-row">
+      <input class="dk-input sd-link" type="url" autocomplete="off" placeholder="Collez un lien Deezer (https://www.deezer.com/track/… ou /playlist/…)"
+             [value]="link()" (input)="setLink($event)" (keydown.enter)="pasteAndSearch()" />
+      <button class="control-btn" type="button" [disabled]="loading() || !online()" (click)="pasteAndSearch()">Coller et rechercher</button>
+    </div>
+
+    @if (!online()) {
+      <p class="sd-note">Hors ligne : la recherche Deezer n'est pas disponible. Les titres déjà affichés restent consultables.</p>
+    }
+    @if (loading()) { <div class="sd-progress"><div class="dk-progress indeterminate"><div class="fill"></div></div></div> }
+
+    @if (canGoBack() || crumb()) {
+      <div class="sd-nav">
+        @if (canGoBack()) { <button class="control-btn small" type="button" (click)="back()">← Retour</button> }
+        <span class="sd-crumb">{{ crumb() }}</span>
+      </div>
+    }
+
+    @if (header(); as h) {
+      <div class="sd-album">
+        <span class="sd-thumb sd-thumb-lg">@if (h.picture) { <img [src]="img(h.picture)" alt="" /> } @else { ⏳ }</span>
+        <div class="sd-album-text">
+          <div class="sd-album-title">{{ h.name }}</div>
+          @if (h.subtitle) { <div class="sd-album-sub">{{ h.subtitle }}</div> }
+        </div>
+      </div>
+    }
+
+    @if (mode() === 'tracks' && tracks().length > 0) {
+      <div class="sd-filters dk-filters">
+        <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="allChecked()" (change)="selectAll($any($event.target).checked)" /> <strong>Tout sélectionner</strong></label>
+        <input class="dk-input sd-filter" type="search" placeholder="Filtrer instantanément les résultats..." aria-label="Filtrer les résultats" [value]="filter()" (input)="setFilter($event)" />
+        @if (duplicateTotal() > 0) {
+          <span class="sd-summary" [matTooltip]="summaryTip">
+            @if (present() > 0) { <span class="ok">✓ {{ present() }} déjà sur le disque</span> }
+            @if (present() > 0 && possible() > 0) { · }
+            @if (possible() > 0) { <span class="warn">≈ {{ possible() }} doublon(s) possible(s)</span> }
+          </span>
+          <button class="control-btn small" type="button" [attr.aria-pressed]="duplicatesOnly()" [class.checked]="duplicatesOnly()"
+                  matTooltip="N'afficher que les titres déjà sur le disque ou soupçonnés d'y être" (click)="duplicatesOnly.set(!duplicatesOnly())">Voir les doublons ({{ duplicateTotal() }})</button>
+          @if (dedupCandidates().length > 0) {
+            <button class="control-btn small" type="button" (click)="dedupe()">Dédoublonner…</button>
+          }
+        }
+      </div>
+    }
+  </div>
+
+  <div class="sd-body">
+    @if (message(); as m) {
+      <div class="sd-message" [class.error]="m.error"><strong>{{ m.title }}</strong><span>{{ m.text }}</span></div>
+    }
+
+    @if (mode() === 'entities') {
+      <div class="dk-table sd-table">
+        <div class="dk-thead sd-ent-grid">
+          <span></span>
+          <span (click)="sortEntities('name')" [class.sorted]="entitySort()?.column === 'name'">{{ entities()[0]?.kind === 'ALBUM' ? 'ALBUM' : 'ARTISTE' }}</span>
+          <span class="dk-hide-mobile" (click)="sortEntities('subtitle')" [class.sorted]="entitySort()?.column === 'subtitle'">DÉTAILS</span>
+          <span></span>
+        </div>
+        <cdk-virtual-scroll-viewport itemSize="66" class="sd-viewport">
+          <div *cdkVirtualFor="let e of visibleEntities(); trackBy: trackEntity" class="dk-row sd-ent-grid sd-row-h">
+            <span class="sd-thumb">@if (e.picture) { <img [src]="img(e.picture)" alt="" loading="lazy" /> } @else { ⏳ }</span>
+            <span class="sd-title-cell"><span class="sd-strong">{{ e.name }}</span><span class="dk-cell-sub dk-hide-desktop">{{ e.subtitle }}</span></span>
+            <span class="dk-hide-mobile dk-muted">{{ e.subtitle }}</span>
+            <button class="primary-btn small" type="button" (click)="openEntity(e)">{{ entityLabel(e) }}</button>
+          </div>
+        </cdk-virtual-scroll-viewport>
+      </div>
+    }
+
+    @if (mode() === 'tracks' && tracks().length > 0) {
+      <div class="dk-table sd-table">
+        <div class="dk-thead sd-grid">
+          <span></span>
+          <span class="dk-hide-mobile"></span>
+          <span (click)="sortBy('title')" [class.sorted]="sortColumn() === 'title'">TITRE{{ arrow('title') }}</span>
+          <span class="dk-hide-mobile" (click)="sortBy('artist')" [class.sorted]="sortColumn() === 'artist'">ARTISTE{{ arrow('artist') }}</span>
+          <span class="dk-hide-mobile" (click)="sortBy('album')" [class.sorted]="sortColumn() === 'album'">ALBUM{{ arrow('album') }}</span>
+          <span class="dk-hide-mobile sd-center" (click)="sortBy('duration')" [class.sorted]="sortColumn() === 'duration'">DURÉE{{ arrow('duration') }}</span>
+          <span class="dk-hide-mobile" (click)="sortBy('rank')" [class.sorted]="sortColumn() === 'rank'">POP.{{ arrow('rank') }}</span>
+          <span class="sd-center">ÉCOUTE</span>
+        </div>
+        <cdk-virtual-scroll-viewport itemSize="64" class="sd-viewport">
+          <div *cdkVirtualFor="let t of visibleTracks(); trackBy: trackById" class="dk-row sd-grid sd-row-h" [class.selected]="picked().has(t.id)">
+            <span class="sd-check">
+              <dk-presence [state]="t.presence.state" [tooltip]="presenceTip(t)" />
+              <input type="checkbox" class="dk-check" [checked]="picked().has(t.id)" [disabled]="t.presence.state === 'PRESENT'"
+                     [attr.aria-label]="'Sélectionner ' + t.title" [matTooltip]="checkTip(t)" (change)="toggle(t, $any($event.target).checked)" />
+            </span>
+            <span class="sd-thumb dk-hide-mobile">@if (t.coverSmall) { <img [src]="img(t.coverSmall)" alt="" loading="lazy" /> } @else { ♪ }</span>
+            <span class="sd-title-cell">
+              <span class="sd-strong">{{ t.title }}@if (t.explicit) { <span class="dk-chip sd-explicit" matTooltip="Paroles explicites">E</span> }</span>
+              <span class="dk-cell-sub dk-hide-desktop">
+                @if (t.artistId) { <a class="sd-link-a" (click)="openArtist(t)">{{ t.artist }}</a> } @else { {{ t.artist }} }
+                @if (t.album) { · @if (t.albumId) { <a class="sd-link-a" (click)="openAlbum(t)">{{ t.album }}</a> } @else { {{ t.album }} } }
+                · {{ t.duration | duration }}
+              </span>
+            </span>
+            <span class="dk-hide-mobile">
+              @if (t.artistId) { <a class="sd-link-a" matTooltip="Cliquer pour explorer" (click)="openArtist(t)">{{ t.artist }}</a> } @else { {{ t.artist }} }
+            </span>
+            <span class="dk-hide-mobile">
+              @if (t.albumId) { <a class="sd-link-a" matTooltip="Cliquer pour explorer" (click)="openAlbum(t)">{{ t.album }}</a> } @else { {{ t.album }} }
+            </span>
+            <span class="dk-hide-mobile sd-center">{{ t.duration | duration }}</span>
+            <span class="dk-hide-mobile sd-gauge" [matTooltip]="'Popularité Deezer : ' + (t.rank ?? 0)">
+              @for (on of bars(t); track $index) { <i [class.on]="on"></i> }
+            </span>
+            <span class="sd-center">
+              <button class="sd-play" type="button" [disabled]="!t.previewUrl" [class.active]="playing(t)"
+                      [attr.aria-label]="playing(t) ? 'Arrêter l\'extrait' : 'Écouter l\'extrait'"
+                      [matTooltip]="t.previewUrl ? 'Écouter un extrait de 30 secondes' : 'Aucun extrait disponible pour ce titre'" (click)="listen(t)">{{ playing(t) ? '⏸' : '▶' }}</button>
+            </span>
+          </div>
+        </cdk-virtual-scroll-viewport>
+      </div>
+    }
+  </div>
+
+  <div class="sd-foot">
+    <button class="control-btn" type="button" (click)="cancel()">Annuler</button>
+    <button class="primary-btn" type="button" [disabled]="pickedCount() === 0" (click)="add()">Ajouter la sélection{{ pickedCount() > 0 ? ' (' + pickedCount() + ')' : '' }}</button>
+  </div>
+</div>

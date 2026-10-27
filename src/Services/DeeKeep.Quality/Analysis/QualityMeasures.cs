@@ -71,7 +71,29 @@ public sealed record QualityMeasures
     };
 
     /// <summary>Texte de la colonne <c>quality.measures</c>.</summary>
-    public string ToJsonText() => SettingsJson.Dump(ToJson());
+    public string ToJsonText()
+    {
+        // Écrit à la main : les flottants entiers doivent rester « 0.0 » comme json.dumps de Python,
+        // ce que le sérialiseur générique réduirait à « 0 ».
+        var sb = new System.Text.StringBuilder("{");
+        var first = true;
+        foreach (var (key, node) in ToJson().OrderBy(kv => kv.Key, StringComparer.Ordinal))
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append('"').Append(key).Append("\":");
+            sb.Append(node switch
+            {
+                null => "null",
+                JsonValue v when v.TryGetValue<string>(out var str) => JsonSerializer.Serialize(str),
+                JsonValue v when v.TryGetValue<bool>(out var b) => b ? "true" : "false",
+                JsonValue v when v.TryGetValue<long>(out var l) && key is "gap_count" or "sample_rate" => l.ToString(CultureInfo.InvariantCulture),
+                JsonValue v => PythonFloat.Repr(v.GetValue<double>()),
+                _ => "null",
+            });
+        }
+        return sb.Append('}').ToString();
+    }
 
     private static JsonNode? Num(double value) =>
         double.IsNaN(value) ? null

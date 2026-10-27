@@ -102,6 +102,7 @@ h1, h2, h3 { font-family: var(--dk-font-title); }
   gap: 12px;
   @media (max-width: 899px) { gap: 8px; }
 }
+.dk-actions > .primary-btn:last-child { margin-left: auto; }
 .dk-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; font-size: 13px; color: var(--dk-muted); }
 
 %dk-btn {
@@ -128,7 +129,7 @@ h1, h2, h3 { font-family: var(--dk-font-title); }
   color: var(--dk-muted);
   font-size: 12px;
   font-weight: 600;
-  padding: 10px 20px;
+  padding: 10px 16px;
   &:hover:not(:disabled) { background: rgba(255, 255, 255, .06); border-color: rgba(255, 255, 255, .2); color: var(--dk-text); }
   &:disabled { color: var(--dk-disabled-control); border-color: rgba(255, 255, 255, .04); }
   &.checked, &[aria-pressed='true'] { background: rgba(0, 229, 255, .12); border-color: rgba(0, 229, 255, .45); color: var(--dk-primary); }

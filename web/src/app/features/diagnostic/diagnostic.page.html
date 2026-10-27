@@ -1,0 +1,90 @@
+<section class="dk-page diag">
+  <h1 class="dk-page-title">Diagnostic</h1>
+
+  <div class="dk-actions">
+    <span class="dk-faint">{{ reachable() }} / {{ services().length }} services joignables</span>
+    <span class="dk-spacer"></span>
+    <button class="accent-btn" (click)="refresh()">Actualiser</button>
+  </div>
+
+  @if (stale()) { <p class="dk-help dk-error-text">Hors ligne : état servi par le cache local, peut être périmé.</p> }
+  @if (error()) { <p class="dk-error-text">{{ error() }}</p> }
+
+  <div class="grid">
+    @for (s of services(); track s.service) {
+      <article class="dk-card svc" [class.down]="!s.reachable">
+        <header>
+          <span class="dot" [class.ok]="s.reachable" [class.bad]="!s.reachable"></span>
+          <h2>{{ label(s.service) }}</h2>
+          <span class="dk-chip" [class.ok]="s.reachable" [class.err]="!s.reachable">{{ s.reachable ? 'En ligne' : 'Injoignable' }}</span>
+        </header>
+        @if (s.info; as i) {
+          <dl>
+            <dt>Version</dt><dd>{{ i.version }} · démarré il y a {{ uptime(i.startedAt) }}</dd>
+            <dt>Mémoire</dt><dd>{{ bytes(i.workingSetBytes) }} (tas géré {{ bytes(i.managedHeapBytes) }})</dd>
+            <dt>Tâches actives</dt><dd>{{ i.activeJobs }}</dd>
+            <dt>Boîte d'envoi</dt><dd [class.dk-error-text]="i.outboxPending > 0">{{ i.outboxPending }} en attente</dd>
+          </dl>
+          @if (i.links.length) {
+            <div class="links">
+              @for (l of i.links; track l.producer) {
+                <span class="dk-chip" [class.ok]="l.connected" [class.err]="!l.connected" [matTooltip]="l.lastError ?? (l.since ? 'Connecté ' + when(l.since) : '')">
+                  événements ← {{ l.producer }} : {{ l.connected ? 'connecté' : 'coupé' }}
+                </span>
+              }
+            </div>
+          }
+        } @else { <p class="dk-error-text">{{ s.error }}</p> }
+      </article>
+    } @empty {
+      <div class="dk-empty">{{ loading() ? 'Chargement…' : 'Aucun service.' }}</div>
+    }
+  </div>
+
+  <h2 class="sub">Outils</h2>
+  <div class="dk-card">
+    <ul class="tools">
+      @for (t of tools(); track t.service + t.name) {
+        <li>
+          <span class="mark" [class.ok]="t.available" [class.bad]="!t.available">{{ t.available ? '✓' : '✗' }}</span>
+          <span class="tname">{{ t.name }}</span>
+          <span class="dk-faint" [matTooltip]="t.path ?? ''">{{ t.version ?? (t.available || t.detail ? '' : 'Non détecté') }}{{ t.detail ? (t.version ? ' · ' : '') + t.detail : '' }}</span>
+          <span class="dk-faint svc-name">{{ t.service }}</span>
+        </li>
+      } @empty { <li class="dk-faint">Aucun outil déclaré.</li> }
+    </ul>
+    @if (updateJob(); as j) {
+      <p class="dk-help" [class.dk-error-text]="j.status === 'FAILED'">yt-dlp : {{ j.error ?? j.message ?? j.status }}</p>
+    }
+    <div class="dk-actions">
+      <span class="dk-spacer"></span>
+      <button class="primary-btn" [disabled]="updating()" (click)="updateYtDlp()">{{ updating() ? 'Mise à jour…' : 'Mettre à jour yt-dlp' }}</button>
+    </div>
+  </div>
+
+  <h2 class="sub">Enregistrement</h2>
+  <div class="dk-card">
+    <p class="dk-help">Dossier d'enregistrement actuel : <strong>{{ downloadDir() || '—' }}</strong></p>
+  </div>
+
+  <h2 class="sub">Cet appareil</h2>
+  <div class="dk-card">
+    <dl>
+      <dt>Liaison au serveur</dt>
+      <dd>
+        <span class="dot" [class.ok]="connectivity.state() === 'online'" [class.bad]="connectivity.state() === 'offline'"></span>
+        {{ connectivity.state() === 'online' ? 'Connecté' : connectivity.state() === 'reconnecting' ? 'Reconnexion…' : 'Hors ligne' }}
+        @if (connectivity.lastError()) { <span class="dk-faint"> · {{ connectivity.lastError() }}</span> }
+      </dd>
+      <dt>Reconnexions</dt><dd>{{ connectivity.resyncTick() }} depuis l'ouverture</dd>
+      <dt>Actions en attente</dt><dd [class.dk-error-text]="queue.pending() > 0">{{ queue.pending() }}{{ queue.replaying() ? ' (envoi en cours)' : '' }}</dd>
+      <dt>Titres épinglés</dt><dd>{{ offlineAudio.pinned().size }} pour l'écoute hors ligne</dd>
+      @if (storage(); as st) { <dt>Stockage de l'appareil</dt><dd>{{ bytes(st.used) }} utilisés sur {{ bytes(st.quota) }}</dd> }
+    </dl>
+    @if (queue.items().length) {
+      <ul class="queue">
+        @for (q of queue.items(); track q.id) { <li>{{ q.label }}{{ q.lastError ? ' — ' + q.lastError : '' }}</li> }
+      </ul>
+    }
+  </div>
+</section>

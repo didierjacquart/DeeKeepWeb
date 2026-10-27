@@ -278,9 +278,8 @@ export class ArchivePanel {
   }
 
   async browse(): Promise<void> {
-    const picked: unknown = await openFsBrowser(this.dialog, { mode: 'folder' });
-    const path = typeof picked === 'string' ? picked : (picked as { localPath?: string; path?: string } | null)?.localPath ??
-      (picked as { path?: string } | null)?.path;
+    const picked = await openFsBrowser(this.dialog, { mode: 'folder' });
+    const path = picked?.[0];
     if (path) this.onRootInput(path);
   }
 

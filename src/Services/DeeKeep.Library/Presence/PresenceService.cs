@@ -217,6 +217,9 @@ public sealed class PresenceService(
         events.Publish(EventTypes.PresenceChanged, new PresenceChangedEvent(ready, files, Interlocked.Increment(ref _version), reason));
     }
 
+    private static bool ChangedDownloadDir(ServiceEvent evt) =>
+        evt.Data is System.Text.Json.Nodes.JsonObject o && o["changed"] is System.Text.Json.Nodes.JsonArray a && a.Any(n => n?.ToString() == "download_dir");
+
     /// <summary>Événements du service lui-même qui changent le fond de la bibliothèque.</summary>
     private async Task WatchOwnEventsAsync(CancellationToken ct)
     {
@@ -227,7 +230,7 @@ public sealed class PresenceService(
             {
                 switch (evt.Type)
                 {
-                    case EventTypes.SettingsChanged when evt.Data?["changed"] is { } changed && changed.ToJsonString().Contains("\"download_dir\""):
+                    case EventTypes.SettingsChanged when (evt.Data?.ToJsonString() ?? "").Contains("\"changed\":[") && ChangedDownloadDir(evt):
                         RequestRebuild(invalidate: true);
                         break;
                     case LibraryEvents.LibraryChanged:

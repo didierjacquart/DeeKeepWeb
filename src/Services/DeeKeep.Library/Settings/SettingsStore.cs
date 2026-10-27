@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using DeeKeep.Common.Data;
 using DeeKeep.Common.Events;
@@ -144,24 +145,24 @@ public sealed class SettingsStore(DeeKeepDb db, EventLog events, IConfiguration 
     public static JsonNode? CoerceLike(JsonNode? value, JsonNode? reference)
     {
         if (value is not JsonValue v || reference is not JsonValue r) return value?.DeepClone();
-        var referenceIsFloat = IsFloat(r);
-        if (v.TryGetValue<double>(out var d) && !v.TryGetValue<bool>(out _))
+        // Raisonne sur le texte JSON : le type CLR d'un nombre relu dépend de sa source (JsonElement, int, double).
+        var text = v.ToJsonString();
+        var refText = r.ToJsonString();
+        if (!IsNumber(text) || !IsNumber(refText)) return value.DeepClone();
+        var d = double.Parse(text, System.Globalization.CultureInfo.InvariantCulture);
+        if (IsFloat(r, refText)) return JsonValue.Create(d);
+        return d == Math.Truncate(d) && Math.Abs(d) < 9e15 ? JsonValue.Create((long)d) : value.DeepClone();
+    }
+
+    // Un flottant rond (« -65.0 ») s'imprime « -65 » en .NET : le type CLR, ou le texte source, en décide.
+    private static bool IsFloat(JsonValue value, string text) =>
+        value.GetValue<object>() switch
         {
-            if (referenceIsFloat) return JsonValue.Create(d);
-            if (IsInteger(r) && d == Math.Truncate(d) && Math.Abs(d) < 9e15) return JsonValue.Create((long)d);
-        }
-        return value.DeepClone();
-    }
+            double or float or decimal => true,
+            JsonElement e => e.GetRawText().AsSpan().IndexOfAny('.', 'e', 'E') >= 0,
+            _ => text.AsSpan().IndexOfAny('.', 'e', 'E') >= 0,
+        };
 
-    private static bool IsFloat(JsonValue value)
-    {
-        if (value.TryGetValue<bool>(out _) || value.TryGetValue<string>(out _)) return false;
-        if (value.TryGetValue<double>(out _) && !value.TryGetValue<long>(out _)) return true;
-        // Nombre lu dans un texte JSON : « 3.0 » est un flottant même si sa valeur est entière.
-        var text = value.ToJsonString();
-        return text.Contains('.') || text.Contains('e') || text.Contains('E');
-    }
-
-    private static bool IsInteger(JsonValue value) =>
-        !value.TryGetValue<bool>(out _) && value.TryGetValue<long>(out _) && !IsFloat(value);
+    private static bool IsNumber(string json) =>
+        json.Length > 0 && (char.IsDigit(json[0]) || json[0] == '-') && double.TryParse(json, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _);
 }

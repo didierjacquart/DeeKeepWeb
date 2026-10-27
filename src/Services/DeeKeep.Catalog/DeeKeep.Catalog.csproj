@@ -2,6 +2,7 @@
   <PropertyGroup>
     <RootNamespace>DeeKeep.Catalog</RootNamespace>
     <UserSecretsId>deekeep-catalog</UserSecretsId>
+    <NoWarn>$(NoWarn);EXTEXP0001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\DeeKeep.Common\DeeKeep.Common.csproj" />

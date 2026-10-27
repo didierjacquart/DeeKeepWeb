@@ -30,10 +30,10 @@
           </div>
         </div>
         <ol class="queue">
-          @for (t of player.queue(); track t.id; let i = $index) {
-            <li [class.current]="i === player.index()" (click)="player.playAt(i)">
-              <span class="q-title">{{ t.title }}</span>
-              <span class="dk-faint">{{ t.artist }}</span>
+          @for (e of queueWindow(); track e.t.id) {
+            <li [class.current]="e.i === player.index()" (click)="player.playAt(e.i)">
+              <span class="q-title">{{ e.t.title }}</span>
+              <span class="dk-faint">{{ e.t.artist }}</span>
             </li>
           }
         </ol>

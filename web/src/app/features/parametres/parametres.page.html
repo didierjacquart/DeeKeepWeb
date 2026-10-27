@@ -1,0 +1,109 @@
+<section class="dk-page settings">
+  <h1 class="dk-page-title">Paramètres d'exportation</h1>
+
+  @if (stale()) { <p class="dk-help dk-error-text">Hors ligne : réglages servis par le cache local. Vos changements partiront au retour de la connexion.</p> }
+
+  <div class="dk-card form">
+    <label class="row">
+      <span>Format de fichier d'export :</span>
+      <select class="dk-select" [value]="format()" (change)="setFormat($any($event.target).value)">
+        @for (f of formats; track f) { <option [value]="f" [selected]="f === format()">{{ f }}</option> }
+      </select>
+    </label>
+
+    <label class="row">
+      <span>Qualité d'enregistrement :</span>
+      <select class="dk-select" [value]="quality()" (change)="save({ quality: $any($event.target).value }, 'Changer la qualité')">
+        @for (q of qualities(); track q) { <option [value]="q" [selected]="q === quality()">{{ q }}</option> }
+      </select>
+    </label>
+
+    <label class="row" matTooltip="Réutilise la session YouTube du navigateur du serveur. Pour un serveur sans navigateur, utilisez plutôt un fichier cookies.txt ci-dessous (prioritaire).">
+      <span>Compte YouTube (cookies du navigateur) :</span>
+      <select class="dk-select" [value]="str('youtube_browser', 'Aucun (anonyme)')" (change)="save({ youtube_browser: $any($event.target).value }, 'Changer le compte YouTube')">
+        @for (b of browsers; track b) { <option [value]="b" [selected]="b === str('youtube_browser', 'Aucun (anonyme)')">{{ b }}</option> }
+      </select>
+    </label>
+
+    <div class="row" matTooltip="Fichier de cookies YouTube au format Netscape, exporté avec l'extension « Get cookies.txt LOCALLY ». Prioritaire sur le navigateur ci-dessus. Le fichier se trouve sur le serveur.">
+      <span>{{ str('cookies_file') ? 'Cookies YouTube : ' + str('cookies_file') : 'Cookies YouTube : aucun fichier' }}</span>
+      <span class="inline">
+        <button class="control-btn" (click)="chooseCookies()">Choisir cookies.txt</button>
+        <button class="control-btn" [disabled]="!str('cookies_file')" (click)="save({ cookies_file: '' }, 'Retirer le fichier de cookies')">Retirer</button>
+      </span>
+    </div>
+
+    <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="bool('org_artist', true)" (change)="save({ org_artist: $any($event.target).checked })" /> Créer un sous-dossier par Artiste</label>
+    <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="bool('org_album', true)" (change)="save({ org_album: $any($event.target).checked })" /> Créer un sous-dossier par Album</label>
+
+    <div class="row" matTooltip="À l'organisation de la bibliothèque, les artistes comptant trop peu de titres ne reçoivent pas leur propre dossier : leurs fichiers sont rassemblés dans « Divers ». À l'inverse, un titre déjà dans « Divers » rejoint le dossier de son artiste dès que celui-ci atteint le seuil.">
+      <label class="dk-check"><input type="checkbox" class="dk-check" [checked]="bool('org_divers')" (change)="save({ org_divers: $any($event.target).checked })" /> Regrouper dans un dossier « Divers » les artistes de moins de</label>
+      <span class="inline">
+        <select class="dk-select narrow" [disabled]="!bool('org_divers')" (change)="save({ org_divers_min: +$any($event.target).value }, 'Changer le seuil Divers')" aria-label="Seuil de titres">
+          @for (n of diversRange; track n) { <option [value]="n" [selected]="n === num('org_divers_min', 3)">{{ n }}</option> }
+        </select>
+        titres
+      </span>
+    </div>
+
+    <div class="row">
+      <span>Clé AcoustID :</span>
+      <span class="dk-help">Se règle côté serveur (fichier <code>secrets.json</code>, clé <code>Secrets:AcoustIdKey</code>) : elle n'est jamais stockée dans la base.</span>
+    </div>
+
+    <div class="row">
+      <span>Dossier de sortie actuel : <strong class="path">{{ db()?.downloadDir ?? str('download_dir') }}</strong>
+        @if (db()?.localDownloadDir && db()?.localDownloadDir !== db()?.downloadDir) { <span class="dk-faint"> (sur le serveur : {{ db()?.localDownloadDir }})</span> }</span>
+      <button class="control-btn" (click)="chooseDownloadDir()">Modifier le dossier</button>
+    </div>
+  </div>
+
+  <h2 class="sub">Base de données</h2>
+  <div class="dk-card form">
+    @if (db(); as d) {
+      <p class="dk-help">
+        <strong>{{ d.path }}</strong> — {{ bytes(d.sizeBytes) }} ·
+        {{ d.historyCount }} téléchargements dans l'historique · jaquettes {{ bytes(d.coverBytes) }} ·
+        index de présence : {{ d.presenceReady ? d.presenceFiles + ' fichiers' : 'en cours de lecture…' }}
+      </p>
+      <div class="tables">
+        @for (t of d.tables; track t.table) { <span class="dk-chip">{{ t.table }} : {{ t.rows }}{{ t.deleted ? ' (+' + t.deleted + ' supprimées)' : '' }}</span> }
+      </div>
+    } @else { <p class="dk-faint">Informations de la base indisponibles.</p> }
+
+    @if (scanJob(); as j) {
+      @if (scanning()) {
+        <dk-progress [value]="j.total ? j.progress : null" [label]="j.message" />
+        <button class="control-btn small" (click)="cancel(j)">Arrêter</button>
+      } @else { <p class="dk-help" [class.dk-error-text]="j.status === 'FAILED'">Dernière relecture : {{ j.error ?? j.message }}</p> }
+    }
+    @if (importJob(); as j) {
+      @if (importing()) {
+        <dk-progress [value]="j.total ? j.progress : null" [label]="j.message" />
+        <button class="control-btn small" (click)="cancel(j)">Arrêter</button>
+      } @else { <p class="dk-help" [class.dk-error-text]="j.status === 'FAILED'">Dernier import : {{ j.error ?? j.message }}</p> }
+    }
+
+    <div class="dk-actions">
+      <span class="dk-spacer"></span>
+      <button class="accent-btn" [disabled]="importing()" (click)="importDesktop()" matTooltip="Reprend réglages et historique de l'application desktop (deekeep_config.json)">Importer depuis l'application desktop</button>
+      <button class="primary-btn" [disabled]="scanning()" (click)="rescan()" matTooltip="Parcourt le dossier de sortie : seuls les fichiers nouveaux ou modifiés sont relus">Relire la bibliothèque</button>
+    </div>
+  </div>
+
+  <h2 class="sub">Compte</h2>
+  <div class="dk-card form">
+    @if (auth.state()?.authEnabled) {
+      <div class="row">
+        <span>Utilisateur : <strong>{{ auth.state()?.user }}</strong></span>
+        <button class="control-btn" (click)="logout()">Se déconnecter</button>
+      </div>
+      <div class="row">
+        <input class="dk-input" type="password" autocomplete="new-password" placeholder="Nouveau mot de passe" aria-label="Nouveau mot de passe"
+               [value]="newPassword()" (input)="newPassword.set($any($event.target).value)" />
+        <button class="accent-btn" [disabled]="newPassword().length < 6" (click)="changePassword()">Changer le mot de passe</button>
+      </div>
+      @if (passwordMessage()) { <p class="dk-help">{{ passwordMessage() }}</p> }
+    } @else { <p class="dk-help">L'authentification est désactivée sur ce serveur.</p> }
+  </div>
+</section>

@@ -1,0 +1,118 @@
+<section class="dk-page">
+  <h1 class="dk-page-title">Qualité des titres</h1>
+  <p class="intro">
+    Écoute le signal de chaque fichier — souffle continu, craquements, saturation, coupures au milieu du morceau — et compare sa durée à celle du morceau chez Deezer ou MusicBrainz : un fichier plus court ou plus long n'est pas la version attendue, et c'est le seul indice qu'un rip radio propre laisse derrière lui. Les résultats s'exploitent sans attendre la fin de l'analyse : cochez et retéléchargez au fil de l'eau. Les titres réextraits remplacent la version défectueuse — rangés selon les règles de l'écran « Organiser » — puis sont réanalysés pour vérifier que le défaut a bien disparu.
+  </p>
+
+  <div class="folder-line">
+    <span class="folder" [matTooltip]="folder()">Dossier analysé : <b>{{ folder() || '—' }}</b></span>
+    <button class="control-btn" (click)="panelOpen.set(!panelOpen())" matTooltip="Afficher ou masquer les seuils de détection">{{ panelOpen() ? '▾' : '▸' }} Seuils</button>
+    <button class="control-btn" (click)="changeFolder()" [disabled]="busy()">Modifier le dossier</button>
+  </div>
+
+  @if (panelOpen()) {
+    <div class="dk-card options">
+      @if (thresholds(); as t) {
+        <label class="dk-check deep" [matTooltip]="deepTip" matTooltipClass="dk-tip">
+          <input type="checkbox" [checked]="t.deep" [disabled]="scanning()" (change)="setDeep($event)" />
+          Détecter les craquements (analyse ~4× plus lente)
+        </label>
+        <div class="grid">
+          @for (f of thresholdFields; track f.key) {
+            <label class="field" [matTooltip]="f.tip" matTooltipClass="dk-tip">
+              <span class="lbl">{{ f.label }}</span>
+              <span class="inp">
+                <input class="dk-input" type="number" [min]="f.min" [max]="f.max" [step]="f.step" [value]="thresholdValue(f).toFixed(f.decimals)" (change)="setThreshold(f, $event)" />
+                <span class="unit">{{ f.suffix }}</span>
+              </span>
+            </label>
+          }
+        </div>
+        <p class="note">Modifier un seuil réévalue aussitôt l'analyse déjà faite : aucun fichier n'est relu.</p>
+      } @else {
+        <p class="note">Seuils indisponibles : le service Qualité ne répond pas.</p>
+      }
+    </div>
+  }
+
+  <div class="dk-actions">
+    <button class="control-btn" (click)="checkAll()">Tout cocher</button>
+    <button class="control-btn" (click)="uncheckAll()">Tout décocher</button>
+    <button class="control-btn" (click)="clearList()" [disabled]="busy()" matTooltip="Retirer tous les résultats affichés (les fichiers du disque sont conservés)">Vider la liste</button>
+    <span class="spacer"></span>
+    <button class="control-btn" (click)="stopScan()" [disabled]="!scanning()">Arrêter</button>
+    <button class="accent-btn" (click)="startScan()" [disabled]="busy()" matTooltip="Mesurer la qualité sonore de tous les fichiers du dossier">Analyser</button>
+    <button class="primary-btn" (click)="redownload()" [disabled]="downloading()" matTooltip="Réextraire les titres cochés et remplacer le fichier abîmé dans son dossier d'origine">
+      Retélécharger la sélection@if (selectedCount() > 0) { ({{ selectedCount() }}) }
+    </button>
+  </div>
+
+  @if (scanning()) {
+    <dk-progress [value]="progress()" [label]="null" />
+  }
+
+  <div class="dk-filters">
+    <span>Afficher :</span>
+    @for (d of defects; track d.id) {
+      <label class="dk-check">
+        <input type="checkbox" [checked]="shown()[d.id]" (change)="toggleShown(d.id, $event)" />{{ d.label }}
+      </label>
+    }
+    <label class="dk-check" matTooltip="Afficher aussi les titres qu'aucune mesure ne met en cause">
+      <input type="checkbox" [checked]="includeClean()" (change)="includeClean.set($any($event.target).checked)" />Titres sans défaut
+    </label>
+  </div>
+
+  @if (stale()) { <p class="stale">Connexion perdue : liste affichée depuis la mémoire de l'appareil.</p> }
+
+  <div class="dk-table">
+    <div class="scroller">
+      <div class="inner">
+        <div class="dk-thead grid-cols dk-hide-mobile">
+          @for (c of columns; track c.cls) {
+            <span [class]="c.cls" [class.sorted]="c.key && sort().key === c.key" [matTooltip]="c.tip ?? ''" (click)="sortBy(c)">{{ c.label }}{{ sortMark(c) }}</span>
+          }
+        </div>
+        @if (list().length === 0) {
+          <div class="dk-empty">{{ stats().count === 0 ? 'Aucun résultat.' : 'Aucun titre ne correspond aux filtres.' }}</div>
+        } @else {
+          <cdk-virtual-scroll-viewport [itemSize]="compact() ? 118 : 49" class="vp">
+            <div *cdkVirtualFor="let r of list(); trackBy: trackBy" class="dk-row grid-cols" [class.selected]="selected().has(r.path)" [class.dim]="!r.onDisk"
+                 (dblclick)="play(r)" (contextmenu)="openMenu(r, $event, ctx)">
+              <span class="c-chk"><input type="checkbox" class="dk-check" [checked]="selected().has(r.path)" [disabled]="!!r.error" (change)="toggleRow(r, $event)" /></span>
+              <span class="c-play"><button class="icon-btn" (click)="play(r)" matTooltip="Écouter ce titre dans le lecteur (égaliseur, déplacement)" aria-label="Écouter">▶</button></span>
+              <span class="c-score score" [class]="'c-score score ' + scoreClass(r)">{{ r.cells['score'] }}</span>
+              <span class="c-title" [matTooltip]="r.path"><b>{{ r.title }}</b><span class="dk-cell-sub dk-hide-desktop">{{ r.artist }}</span></span>
+              <span class="c-artist">{{ r.artist }}</span>
+              <span class="c-defects" [class]="'c-defects ' + (r.error ? 'bad' : r.defects.length ? scoreClass(r) : 'ok')" [matTooltip]="r.tooltips['defects'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['defects'] }}</span>
+              <span class="c-hiss" [class.bad]="has(r, 'hiss')" [matTooltip]="r.tooltips['hiss'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['hiss'] }}</span>
+              <span class="c-crackle" [class.bad]="has(r, 'crackle')" [matTooltip]="r.tooltips['crackle'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['crackle'] }}</span>
+              <span class="c-clip" [class.bad]="has(r, 'clipping')">{{ r.cells['clipping'] }}</span>
+              <span class="c-gaps" [class.bad]="has(r, 'gaps')" [matTooltip]="r.tooltips['gaps'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['gaps'] }}</span>
+              <span class="c-dur" [class.bad]="has(r, 'duration')" [matTooltip]="r.tooltips['duration'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['duration'] }}</span>
+              <span class="c-blanks" [class.bad]="has(r, 'tail') || has(r, 'head')" [matTooltip]="r.tooltips['blanks'] ?? ''" matTooltipClass="dk-tip">{{ r.cells['blanks'] }}</span>
+              <span class="c-fmt">{{ r.cells['format'] }}</span>
+              <span class="c-path" [matTooltip]="r.path">{{ r.path }}</span>
+              @let st = statusOf(r);
+              <span class="c-status" [class]="'c-status ' + st.cls" [matTooltip]="st.tip ?? ''" matTooltipClass="dk-tip">{{ st.text }}</span>
+              <button class="icon-btn c-more" (click)="openMenuAt(r, $event, ctx)" aria-label="Plus d'actions">⋮</button>
+            </div>
+          </cdk-virtual-scroll-viewport>
+        }
+      </div>
+    </div>
+  </div>
+
+  <p class="status-line">
+    {{ statusLine() }}@if (refBusy() && !scanning()) { <span> Recherche des durées de référence…</span> }
+  </p>
+
+  <span #ctx="matMenuTrigger" class="ctx-anchor" [style.left.px]="menuPos().x" [style.top.px]="menuPos().y" [matMenuTriggerFor]="menu"></span>
+  <mat-menu #menu="matMenu">
+    @if (menuRow(); as r) {
+      <button mat-menu-item (click)="play(r)">Écouter dans DeeKeep</button>
+      <button mat-menu-item (click)="copyPath(r)">Copier le chemin</button>
+      <button mat-menu-item (click)="reanalyze(r)">Réanalyser</button>
+    }
+  </mat-menu>
+</section>

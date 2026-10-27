@@ -1,0 +1,94 @@
+<section class="dk-page lib">
+  <h1 class="dk-page-title">Bibliothèque</h1>
+
+  <div class="dk-actions">
+    <button class="control-btn" (click)="checkAll()">Tout cocher</button>
+    <button class="control-btn" (click)="uncheckAll()">Tout décocher</button>
+    <label class="dk-check" matTooltip="Afficher aussi les titres que seul l'historique connaît, dont le fichier n'est plus sur le disque. Ceux qui sont archivés restent écoutables.">
+      <input type="checkbox" class="dk-check" [checked]="includeMissing()" (change)="includeMissing.set($any($event.target).checked)" />
+      Titres absents du disque
+    </label>
+    <span class="dk-spacer"></span>
+    <button class="control-btn" [class.checked]="archiveOpen()" (click)="archiveOpen.set(!archiveOpen())" [attr.aria-pressed]="archiveOpen()">
+      {{ archiveOpen() ? '▾' : '▸' }} Archive
+    </button>
+    <button class="accent-btn" (click)="refresh()">Actualiser</button>
+  </div>
+
+  <div class="search">
+    <input class="dk-input" type="search" autocomplete="off" spellcheck="false" aria-label="Rechercher"
+           placeholder="Rechercher dans tous les tags : titre, artiste, album, genre, année, format…"
+           [value]="input()" (input)="onInput($any($event.target).value)" (keydown)="onKey($event)" (blur)="suggestOpen.set(false)" />
+    @if (input()) { <button class="icon-btn clear" (click)="clearSearch()" aria-label="Effacer la recherche">✕</button> }
+    @if (suggestions().length) {
+      <ul class="suggest" role="listbox">
+        @for (s of suggestions(); track s.key; let i = $index) {
+          <li role="option" [class.active]="i === suggestIndex()" [attr.aria-selected]="i === suggestIndex()" (mousedown)="pick(s); $event.preventDefault()">
+            {{ suggestionText(s) }}
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  @if (archiveOpen()) {
+    <dk-archive-panel [selected]="selectedPaths()" [visible]="visiblePaths()" />
+  }
+
+  @if (stale()) { <p class="dk-help dk-error-text">Hors ligne : liste servie par le cache local, peut être périmée.</p> }
+  @if (error()) { <p class="dk-error-text">Base illisible : {{ error() }}</p> }
+
+  <div class="dk-table lib-table">
+    <div class="dk-thead lib-grid" role="row">
+      @for (c of columns; track $index) {
+        <span [class]="c.cls ?? ''" [class.sorted]="c.key && sort().column === c.key" (click)="sortBy(c.key)" role="columnheader">{{ c.label }}{{ sortMark(c.key) }}</span>
+      }
+    </div>
+
+    @if (loading()) {
+      <div class="dk-empty">Chargement de la bibliothèque…</div>
+    } @else if (!displayed().length) {
+      <div class="dk-empty">{{ rows().length ? 'Aucun titre ne correspond à la recherche.' : 'Aucun titre : lancez « Relire la bibliothèque » dans les Paramètres.' }}</div>
+    } @else {
+      <cdk-virtual-scroll-viewport itemSize="44" minBufferPx="600" maxBufferPx="1200" class="viewport">
+        <div *cdkVirtualFor="let r of displayed(); trackBy: trackBy" class="dk-row lib-grid" [class.dim]="!r.track.onDisk" [class.selected]="checked().has(r.track.path)"
+             (dblclick)="play(r.track)" (contextmenu)="openMenu($event, r.track)">
+          <input type="checkbox" class="dk-check" [checked]="checked().has(r.track.path)" (change)="toggle(r.track.path, $any($event.target).checked)" [attr.aria-label]="'Cocher ' + (r.track.title ?? '')" />
+          <button class="play" [class.off]="!playable(r.track)" [matTooltip]="playTip(r.track)" (click)="play(r.track)" aria-label="Écouter">▶</button>
+          <span class="cloud" [class.ok]="r.track.archiveState === 'ok'" [class.stale]="r.track.archiveState === 'stale'" [matTooltip]="cloudTip(r.track)">
+            @switch (r.track.archiveState) {
+              @case ('ok') { ✓ {{ bytes(r.track.archiveBytes) }} }
+              @case ('stale') { à renvoyer }
+              @default { — }
+            }
+          </span>
+          <span class="title" [matTooltip]="r.track.title ?? ''">
+            {{ r.track.title || '(sans titre)' }}
+            <span class="dk-cell-sub dk-hide-desktop">{{ r.track.artist }}{{ r.track.format ? ' · ' + r.track.format : '' }}</span>
+          </span>
+          <span class="dk-hide-mobile" [matTooltip]="r.track.artist ?? ''">{{ r.track.artist }}</span>
+          <span class="dk-hide-mobile" [matTooltip]="r.track.album ?? ''">{{ r.track.album }}</span>
+          <span class="dk-hide-mobile">{{ r.track.genre }}</span>
+          <span class="dk-hide-mobile">{{ r.track.year }}</span>
+          <span class="dk-hide-mobile">{{ r.track.duration ? duration(r.track.duration) : '' }}</span>
+          <span class="dk-hide-mobile">{{ r.track.format }}</span>
+          <span class="dk-hide-mobile path" [matTooltip]="r.track.path">{{ r.track.path }}</span>
+        </div>
+      </cdk-virtual-scroll-viewport>
+    }
+  </div>
+
+  <p class="dk-help status" aria-live="polite">{{ summary() }}</p>
+
+  <span class="menu-anchor" [style.left.px]="menuAt().x" [style.top.px]="menuAt().y" [matMenuTriggerFor]="ctx"></span>
+  <mat-menu #ctx="matMenu">
+    @if (menuRow(); as t) {
+      <button mat-menu-item [disabled]="!playable(t)" (click)="play(t)">Écouter dans le lecteur</button>
+      <button mat-menu-item [disabled]="!t.onDisk" (click)="pin(t)">{{ menuPinned() ? 'Retirer de l’écoute hors ligne' : 'Épingler pour l’écoute hors ligne' }}</button>
+      <button mat-menu-item [disabled]="!t.onDisk" (click)="archiveOne(t)">Archiver ce titre</button>
+      <button mat-menu-item [disabled]="t.onDisk || t.archiveState === 'none'" (click)="restoreOne(t)">Restaurer ce titre depuis l'archive</button>
+      <button mat-menu-item [disabled]="t.archiveState === 'none'" (click)="removeFromArchive(t)">Retirer de l'archive</button>
+      <button mat-menu-item (click)="copyPath(t)">Copier le chemin</button>
+    }
+  </mat-menu>
+</section>

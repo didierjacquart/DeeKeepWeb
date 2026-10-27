@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, effect, inject, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, OnDestroy, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { PlayerService, EQ_BANDS } from './player.service';
 import { OfflineAudioService } from './offline-audio.service';
@@ -23,6 +23,12 @@ export class PlayerBar implements OnDestroy {
   readonly canvas = viewChild<ElementRef<HTMLCanvasElement>>('eq');
   readonly bands = EQ_BANDS.map(f => (f >= 1000 ? `${f / 1000}k` : `${f}`));
   readonly dragging = signal<number | null>(null);
+  /** Fenêtre de la file affichée : 10 titres avant, 150 après le titre courant. */
+  readonly queueWindow = computed(() => {
+    const queue = this.player.queue();
+    const from = Math.max(0, this.player.index() - 10);
+    return queue.slice(from, from + 160).map((t, k) => ({ t, i: from + k }));
+  });
 
   private frame = 0;
   private readonly levels = new Float32Array(EQ_BANDS.length);

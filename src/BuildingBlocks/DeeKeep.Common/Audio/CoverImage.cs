@@ -1,9 +1,6 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
-using SixLabors.ImageSharp.PixelFormats;
-using SixLabors.ImageSharp.Processing;
+using SkiaSharp;
 
 namespace DeeKeep.Common.Audio;
 
@@ -33,23 +30,31 @@ public static class CoverImage
     public static string Sha1(ReadOnlySpan<byte> data) => Convert.ToHexStringLower(SHA1.HashData(data));
 
     /// <summary>
-    /// Type et dimensions lus dans l'en-tête seul (ImageSharp <c>Identify</c> : l'image
-    /// n'est pas décodée). Un format inconnu d'ImageSharp retombe sur
-    /// <see cref="DescribeLikePython"/>. Diffère de l'original pour WebP (dimensions
-    /// réelles au lieu de 0 × 0) et pour un JPEG dont l'en-tête de trame est illisible.
+    /// Type et dimensions lus dans l'en-tête seul (<c>SKCodec</c> : l'image n'est pas décodée).
+    /// Un format inconnu de Skia retombe sur <see cref="DescribeLikePython"/>. Diffère de
+    /// l'original pour WebP (dimensions réelles au lieu de 0 × 0).
     /// </summary>
     public static CoverInfo Describe(ReadOnlySpan<byte> data)
     {
         if (data.IsEmpty) return new CoverInfo("", 0, 0);
         try
         {
-            var info = Image.Identify(data);
-            var mime = info.Metadata.DecodedImageFormat?.DefaultMimeType;
-            if (!string.IsNullOrEmpty(mime)) return new CoverInfo(mime, info.Width, info.Height);
+            using var skData = SKData.CreateCopy(data);
+            using var codec = SKCodec.Create(skData);
+            var mime = codec?.EncodedFormat switch
+            {
+                SKEncodedImageFormat.Png => "image/png",
+                SKEncodedImageFormat.Jpeg => "image/jpeg",
+                SKEncodedImageFormat.Gif => "image/gif",
+                SKEncodedImageFormat.Bmp => "image/bmp",
+                SKEncodedImageFormat.Webp => "image/webp",
+                _ => null,
+            };
+            if (mime is not null) return new CoverInfo(mime, codec!.Info.Width, codec.Info.Height);
         }
-        catch (Exception ex) when (ex is UnknownImageFormatException or InvalidImageContentException or NotSupportedException)
+        catch (Exception)
         {
-            // Format inconnu ou en-tête abîmé : la lecture « à la main » de l'original décide.
+            // En-tête abîmé : la lecture « à la main » de l'original décide.
         }
         return DescribeLikePython(data);
     }
@@ -104,20 +109,27 @@ public static class CoverImage
         if (cover is not { Length: > 0 }) return cover;
         try
         {
-            // RGB : le JPEG ignore la transparence, une PNG transparente perd son canal alpha.
-            using var image = Image.Load<Rgb24>(cover);
-            var side = Math.Min(image.Width, image.Height);
+            using var decoded = SKBitmap.Decode(cover);
+            if (decoded is null) return cover;
+            var side = Math.Min(decoded.Width, decoded.Height);
             if (side < BadgeMinCover) return cover;
 
             var badge = Math.Max(16, (int)Math.Round(side * ratio, MidpointRounding.ToEven));
             var gap = Math.Max(1, (int)Math.Round(side * margin, MidpointRounding.ToEven));
             using var icon = AppIconImage(badge);
-            image.Mutate(ctx => ctx.DrawImage(icon, new Point(image.Width - icon.Width - gap, gap), 1f));
 
-            using var output = new MemoryStream();
+            // Surface opaque : le JPEG ignore la transparence, une PNG transparente ne doit pas virer au noir.
+            using var canvasBitmap = new SKBitmap(decoded.Width, decoded.Height, SKColorType.Rgba8888, SKAlphaType.Opaque);
+            using (var canvas = new SKCanvas(canvasBitmap))
+            {
+                canvas.Clear(SKColors.White);
+                canvas.DrawImage(SKImage.FromBitmap(decoded), 0, 0, new SKSamplingOptions());
+                canvas.DrawImage(SKImage.FromBitmap(icon), decoded.Width - icon.Width - gap, gap, new SKSamplingOptions());
+            }
             // 4:4:4 (couleur non sous-échantillonnée) : ce que produisait Qt à cette qualité (vérifié sur sa sortie).
-            image.Save(output, new JpegEncoder { Quality = StampJpegQuality, ColorType = JpegColorType.YCbCrRatio444 });
-            return output.ToArray();
+            using var pixmap = canvasBitmap.PeekPixels();
+            using var encoded = pixmap.Encode(new SKJpegEncoderOptions(StampJpegQuality, SKJpegEncoderDownsample.Downsample444, SKJpegEncoderAlphaOption.Ignore));
+            return encoded?.ToArray() ?? cover;
         }
         catch (Exception)
         {
@@ -131,28 +143,23 @@ public static class CoverImage
     /// à défaut la plus grande — réduire préserve les détails, agrandir les invente),
     /// sinon dessinée (<see cref="DrawAppIcon"/>).
     /// </summary>
-    public static Image<Rgba32> AppIconImage(int size)
+    public static SKBitmap AppIconImage(int size)
     {
         var frames = IconFrames.Value;
         if (frames.Count == 0) return DrawAppIcon(size);
         var covering = frames.Where(f => Math.Min(f.Width, f.Height) >= size).ToList();
         var best = covering.Count > 0 ? covering.MinBy(f => f.Width)! : frames.MaxBy(f => f.Width)!;
-        var result = best.Clone();
-        if (result.Width != size || result.Height != size)
-        {
-            // Réduction par moyenne de zone (comme le lissage de Qt), agrandissement bilinéaire.
-            var resampler = best.Width > size ? KnownResamplers.Box : KnownResamplers.Triangle;
-            result.Mutate(ctx => ctx.Resize(new ResizeOptions { Size = new Size(size, size), Mode = ResizeMode.Max, Sampler = resampler }));
-        }
-        return result;
+        if (best.Width == size && best.Height == size) return best.Copy();
+        // Réduction/agrandissement lissés (bilinéaire + mipmaps), comme le lissage de Qt.
+        return best.Resize(new SKSizeI(size, size), new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear)) ?? DrawAppIcon(size);
     }
 
     // Résolutions de l'icon.ico embarqué (copie de celui de l'application desktop).
-    private static readonly Lazy<IReadOnlyList<Image<Rgba32>>> IconFrames = new(LoadIconFrames);
+    private static readonly Lazy<IReadOnlyList<SKBitmap>> IconFrames = new(LoadIconFrames);
 
-    private static IReadOnlyList<Image<Rgba32>> LoadIconFrames()
+    private static IReadOnlyList<SKBitmap> LoadIconFrames()
     {
-        var frames = new List<Image<Rgba32>>();
+        var frames = new List<SKBitmap>();
         try
         {
             using var stream = typeof(CoverImage).Assembly.GetManifestResourceStream("DeeKeep.Common.Audio.icon.ico");
@@ -169,7 +176,7 @@ public static class CoverImage
                 try
                 {
                     // Les résolutions de l'icône sont des PNG ; une image BMP serait ignorée.
-                    frames.Add(Image.Load<Rgba32>(ico.AsSpan(offset, size)));
+                    if (SKBitmap.Decode(ico.AsSpan(offset, size)) is { } frame) frames.Add(frame);
                 }
                 catch (Exception)
                 {
@@ -189,13 +196,13 @@ public static class CoverImage
     /// cyan), définie dans un repère 128 × 128 et rendue avec anticrénelage (8 × 8
     /// échantillons par pixel). Repli quand l'icon.ico est indisponible.
     /// </summary>
-    public static Image<Rgba32> DrawAppIcon(int size = 128)
+    public static SKBitmap DrawAppIcon(int size = 128)
     {
         const int n = 8;
-        var cyan = new Rgba32(0x00, 0xE5, 0xFF);
-        var dark = new Rgba32(0x00, 0x36, 0x3D);
+        var cyan = new SKColor(0x00, 0xE5, 0xFF);
+        var dark = new SKColor(0x00, 0x36, 0x3D);
         var flag = FlagPolygon();
-        var image = new Image<Rgba32>(size, size);
+        var image = new SKBitmap(size, size, SKColorType.Rgba8888, SKAlphaType.Unpremul);
         var scale = 128.0 / size;
         for (var py = 0; py < size; py++)
         {
@@ -214,11 +221,11 @@ public static class CoverImage
                 }
                 var covered = inDark + inCyan;
                 if (covered == 0) continue;
-                image[px, py] = new Rgba32(
-                    (byte)Math.Round((inDark * dark.R + inCyan * cyan.R) / (double)covered),
-                    (byte)Math.Round((inDark * dark.G + inCyan * cyan.G) / (double)covered),
-                    (byte)Math.Round((inDark * dark.B + inCyan * cyan.B) / (double)covered),
-                    (byte)Math.Round(255.0 * covered / (n * n)));
+                image.SetPixel(px, py, new SKColor(
+                    (byte)Math.Round((inDark * dark.Red + inCyan * cyan.Red) / (double)covered),
+                    (byte)Math.Round((inDark * dark.Green + inCyan * cyan.Green) / (double)covered),
+                    (byte)Math.Round((inDark * dark.Blue + inCyan * cyan.Blue) / (double)covered),
+                    (byte)Math.Round(255.0 * covered / (n * n))));
             }
         }
         return image;

@@ -5,8 +5,24 @@ schema {
 }
 
 type Query {
+  search(query: String!, kind: SearchKind! = ALL): SearchResult!
+    @cost(weight: "10")
+  browse(kind: EntityKind!, id: Long!): SearchResult! @cost(weight: "10")
+  searchHistory: [SearchHistoryEntry!]! @cost(weight: "10")
+  searchCover(query: String!): SearchCover! @cost(weight: "10")
+  bestMatch(artist: String!, title: String!, duration: Float): DeezerTrack
+    @cost(weight: "10")
+  deezerTrackDetails(id: Long!): DeezerTrackDetails @cost(weight: "10")
+  referenceDurations(artist: String!, title: String!): ReferenceDurations!
+    @cost(weight: "10")
+  tagProposals(jobId: UUID!): [TagProposal!]! @cost(weight: "10")
+  acoustIdStatus: AcoustIdStatus! @cost(weight: "10")
   services: [ServiceHealth!]! @cost(weight: "10")
   ping: Float!
+  downloadJobs(type: String!, limit: Int): [JobDto!]! @cost(weight: "10")
+  pendingDownloads: [PendingDownload!]! @cost(weight: "10")
+  downloadTools: [ToolStatus!]! @cost(weight: "10")
+  exportOptions: ExportChoices! @cost(weight: "10")
   jobs(
     service: String
     activeOnly: Boolean! = false
@@ -14,16 +30,265 @@ type Query {
     groupKey: String
   ): [JobDto!]! @cost(weight: "10")
   job(service: String!, id: UUID!): JobDto @cost(weight: "10")
+  tracks(query: TrackQueryInput): TrackPage! @cost(weight: "10")
+  track(path: String!): TrackDto @cost(weight: "10")
+  trackSuggestions(text: String!, limit: Int): [TagSuggestion!]!
+    @cost(weight: "10")
+  settings: Any @cost(weight: "10")
+  history: [HistoryEntry!]! @cost(weight: "10")
+  presence(items: [PresenceQueryInput!]!): [PresenceVerdict!]!
+    @cost(weight: "10")
+  browseFolder(path: String, audioOnly: Boolean): FsListing! @cost(weight: "10")
+  databaseInfo: DatabaseInfo! @cost(weight: "10")
+  organizeState: OrganizeStateDto! @cost(weight: "10")
+  organizeEntries(sessionId: UUID!, offset: Int, limit: Int): OrganizeEntryPage!
+    @cost(weight: "10")
+  organizePlan(
+    sessionId: UUID!
+    options: OrganizeOptionsInput
+    offset: Int
+    limit: Int
+  ): OrganizePlanDto! @cost(weight: "10")
+  organizePreview(sessionId: UUID, pattern: String!, rename: Boolean!): OrganizePreview!
+    @cost(weight: "10")
+  organizeNameTags: OrganizeNameTags! @cost(weight: "10")
+  organizeChecks(sessionId: UUID!): OrganizeChecks! @cost(weight: "10")
+  organizeJournal(jobId: UUID!): [OrganizeJournalEntry!]! @cost(weight: "10")
+  organizeProposals(jobId: UUID!): [OrganizeProposalRow!]! @cost(weight: "10")
+  qualityEntries(
+    defects: [String!]
+    includeClean: Boolean
+    offset: Int
+    limit: Int
+    folder: String
+  ): QualityRowsPage! @cost(weight: "10")
+  qualityThresholds: QualityThresholds! @cost(weight: "10")
+  archiveConfig: ArchiveConfig! @cost(weight: "10")
+  archiveUsage(root: String): ArchiveUsage! @cost(weight: "10")
+  archivePlan(paths: [String!]!): ArchivePlan! @cost(weight: "10")
 }
 
 type Mutation {
+  rememberSearch(query: String!): [SearchHistoryEntry!]! @cost(weight: "10")
+  deleteSearch(query: String!): [SearchHistoryEntry!]! @cost(weight: "10")
+  clearSearches: [SearchHistoryEntry!]! @cost(weight: "10")
+  startTagLookup(
+    files: [TagLookupFileInput!]!
+    useAcoustId: Boolean! = true
+    extras: Boolean! = true
+  ): JobDto! @cost(weight: "10")
+  importReferenceCache: JobDto! @cost(weight: "10")
+  enqueueDownloads(
+    tracks: [DownloadTrackInput!]!
+    batchId: String
+    pendingIds: [UUID!]
+    options: ExportOptionsInput
+  ): [JobDto!]! @cost(weight: "10")
+  enqueueConversions(
+    items: [ConvertItemInput!]!
+    format: String
+    quality: String
+    batchId: String
+  ): [JobDto!]! @cost(weight: "10")
+  enqueueRedownloads(items: [RedownloadItemInput!]!, batchId: String): [JobDto!]!
+    @cost(weight: "10")
+  purgeDownloads(type: String!, succeededOnly: Boolean): Int!
+    @cost(weight: "10")
+  removeDownloadJobs(ids: [UUID!]!): Int! @cost(weight: "10")
+  retryDownloadJobs(ids: [UUID!]!): [JobDto!]! @cost(weight: "10")
+  addPendingDownloads(tracks: [DownloadTrackInput!]!): [PendingDownload!]!
+    @cost(weight: "10")
+  removePendingDownloads(ids: [UUID!]!): Int! @cost(weight: "10")
+  updateYtDlp: JobDto! @cost(weight: "10")
   cancelJob(service: String!, id: UUID!): JobDto! @cost(weight: "10")
   retryJob(service: String!, id: UUID!): JobDto! @cost(weight: "10")
+  updateSettings(values: Any!): Any @cost(weight: "10")
+  purgeMissingHistory: HistoryChangeResult! @cost(weight: "10")
+  clearHistory: HistoryChangeResult! @cost(weight: "10")
+  scanLocalFiles(paths: [String!]!): JobDto! @cost(weight: "10")
+  rescanLibrary: JobDto! @cost(weight: "10")
+  importDesktopData(dataDir: String, settings: Boolean, history: Boolean): JobDto!
+    @cost(weight: "10")
+  deleteFiles(paths: [String!]!, reason: String!): DeleteFilesResult!
+    @cost(weight: "10")
+  writeTags(items: [WriteTagsItemInput!]!): JobDto! @cost(weight: "10")
+  startOrganizeAnalysis(root: String!): OrganizeAnalyzeStart!
+    @cost(weight: "10")
+  saveOrganizeOptions(options: OrganizeOptionsInput!): OrganizeOptions!
+    @cost(weight: "10")
+  setOrganizeChecks(sessionId: UUID!, indices: [Int!]!, value: Boolean!): OrganizeChecks!
+    @cost(weight: "10")
+  resetOrganizeChecks(sessionId: UUID!): OrganizeChecks! @cost(weight: "10")
+  applyOrganize(
+    sessionId: UUID!
+    indices: [Int!]!
+    options: OrganizeOptionsInput
+  ): JobDto! @cost(weight: "10")
+  findOrganizeDuplicates(sessionId: UUID!): JobDto! @cost(weight: "10")
+  deleteOrganizeFiles(paths: [String!]!, sessionId: UUID): DeleteFilesResult!
+    @cost(weight: "10")
+  startOrganizeLookup(sessionId: UUID!, indices: [Int!]!): OrganizeLookupStart!
+    @cost(weight: "10")
+  writeOrganizeTags(sessionId: UUID, items: [OrganizeTagWriteInput!]!): JobDto!
+    @cost(weight: "10")
+  updateQualityThresholds(thresholds: QualityThresholdsInput!): QualityThresholds!
+    @cost(weight: "10")
+  startQualityScan(folder: String, deep: Boolean, force: Boolean): JobDto!
+    @cost(weight: "10")
+  reanalyze(paths: [String!]!): JobDto! @cost(weight: "10")
+  redownloadQuality(paths: [String!]!): QualityRedownloadOutcome!
+    @cost(weight: "10")
+  setQualityFolder(folder: String!): String! @cost(weight: "10")
+  clearQuality: Int! @cost(weight: "10")
+  importQualityCache: JobDto! @cost(weight: "10")
+  updateArchiveConfig(root: String, prefix: String): ArchiveConfig!
+    @cost(weight: "10")
+  testArchive(root: String): ArchiveTestResult! @cost(weight: "10")
+  archiveTracks(paths: [String!]!): JobDto! @cost(weight: "10")
+  restoreTracks(paths: [String!]!): JobDto! @cost(weight: "10")
+  removeFromArchive(paths: [String!]!): Int! @cost(weight: "10")
+  measureArchive(root: String): JobDto! @cost(weight: "10")
+  checkArchive: JobDto! @cost(weight: "10")
 }
 
 type Subscription {
+  downloadQueueChanged: DownloadQueueChanged!
   jobUpdated(service: String, type: String, groupKey: String): JobDto!
   jobItem(jobId: UUID, type: String): JobItemEvent!
+  subscribeToEvent(type: String!): [ServiceEvent!]! @cost(weight: "10")
+  tracksChanged: TracksChangedEvent!
+  tracksRemoved: TracksChangedEvent!
+  settingsChanged: Any
+  presenceChanged: PresenceChangedEvent!
+  historyChanged: TracksChangedEvent!
+  qualityUpdated: QualityUpdate!
+  archiveUpdated: ArchiveUpdatedEvent!
+}
+
+type AcoustIdStatus {
+  available: Boolean!
+  message: String!
+}
+
+type ArchiveConfig {
+  root: String
+  prefix: String!
+  archiveFile: String
+  configured: Boolean!
+}
+
+type ArchivePlan {
+  requested: Int!
+  onDisk: Int!
+  restorable: Int!
+  restorableElsewhere: Int!
+  configured: Boolean!
+}
+
+type ArchiveTestResult {
+  ok: Boolean!
+  message: String!
+}
+
+type ArchiveUpdatedEvent {
+  paths: [String!]!
+  reason: String!
+}
+
+type ArchiveUsage {
+  objectCount: Long!
+  storedBytes: Long!
+  archiveFileBytes: Long!
+  diskFreeBytes: Long
+  diskTotalBytes: Long
+  tracksArchived: Int!
+  tracksStale: Int!
+  tracksNotArchived: Int!
+  bytesToArchive: Long!
+  tracksOnDisk: Int!
+  bytesOnDisk: Long!
+  sameVolume: Boolean!
+  configured: Boolean!
+  archiveFile: String
+  error: String
+}
+
+type DatabaseInfo {
+  path: String!
+  sizeBytes: Long!
+  tables: [TableCount!]!
+  historyCount: Int!
+  coverBytes: Long!
+  downloadDir: String
+  localDownloadDir: String
+  presenceReady: Boolean!
+  presenceFiles: Int!
+  desktopDataDir: String
+}
+
+type DeezerEntity {
+  kind: EntityKind!
+  id: Long!
+  name: String!
+  subtitle: String
+  picture: String
+  trackCount: Int
+  fanCount: Int
+  link: String
+}
+
+type DeezerTrack {
+  presence: PresenceVerdict! @cost(weight: "10")
+  id: Long!
+  title: String!
+  artist: String!
+  artistId: Long
+  album: String
+  albumId: Long
+  duration: Float!
+  rank: Int
+  previewUrl: String
+  coverSmall: String
+  coverBig: String
+  link: String
+  explicit: Boolean!
+  trackPosition: Int
+  diskNumber: Int
+}
+
+type DeezerTrackDetails {
+  id: Long!
+  title: String!
+  artist: String!
+  album: String
+  albumArtist: String
+  genre: String
+  year: String
+  trackNumber: Int
+  trackTotal: Int
+  discNumber: Int
+  label: String
+  duration: Float!
+  coverUrl: String
+  isrc: String
+}
+
+type DefectInfo {
+  id: String!
+  label: String!
+  severity: Float!
+  detail: String
+}
+
+type DeleteFilesResult {
+  deleted: [String!]!
+  failed: [String!]!
+  errors: [String!]!
+}
+
+type DownloadQueueChanged {
+  removedJobIds: [UUID!]!
+  pendingChanged: Boolean!
 }
 
 type EventLinkStatus {
@@ -31,6 +296,53 @@ type EventLinkStatus {
   connected: Boolean!
   since: Float
   lastError: String
+}
+
+type ExportChoices {
+  formats: [ExportFormatChoice!]!
+  current: ExportOptions!
+}
+
+type ExportFormatChoice {
+  format: String!
+  qualities: [String!]!
+}
+
+type ExportOptions {
+  format: String!
+  quality: String!
+}
+
+type FsEntry {
+  name: String!
+  localPath: String!
+  isDirectory: Boolean!
+  size: Long
+  mtime: Float
+  isAudio: Boolean!
+}
+
+type FsListing {
+  localPath: String!
+  parent: String
+  entries: [FsEntry!]!
+  roots: [String!]!
+}
+
+type HistoryChangeResult {
+  removed: Int!
+  message: String!
+}
+
+type HistoryEntry {
+  path: String!
+  title: String
+  artist: String
+  album: String
+  coverSha1: String
+  position: Int!
+  onDisk: Boolean!
+  downloadedAt: Float
 }
 
 type JobDto {
@@ -64,6 +376,307 @@ type JobItemEvent {
   data: Any
 }
 
+type KeyValuePairOfStringAndNullableString {
+  key: String!
+  value: String
+}
+
+type OrganizeAlbumFolder {
+  folder: String!
+  label: String!
+}
+
+type OrganizeAnalyzeStart {
+  session: OrganizeSessionDto!
+  job: JobDto!
+}
+
+type OrganizeChecks {
+  sessionId: UUID!
+  checked: [Int!]!
+  unchecked: [Int!]!
+}
+
+type OrganizeEntryDto {
+  index: Int!
+  path: String!
+  dbPath: String!
+  name: String!
+  folder: String!
+  title: String!
+  titleTagged: Boolean!
+  artist: String!
+  album: String!
+  albumArtist: String!
+  genre: String!
+  date: String!
+  track: String!
+  format: String!
+  needsExtras: Boolean!
+}
+
+type OrganizeEntryPage {
+  sessionId: UUID!
+  items: [OrganizeEntryDto!]!
+  total: Int!
+}
+
+type OrganizeJournalEntry {
+  jobId: UUID!
+  index: Int!
+  kind: String!
+  source: String!
+  destination: String!
+  status: String!
+  message: String
+  at: Float!
+}
+
+type OrganizeLookupFile {
+  index: Int!
+  path: String!
+  dbPath: String!
+  relative: String!
+  title: String!
+  titleTagged: Boolean!
+  artist: String!
+  album: String!
+  coreMissing: Boolean!
+}
+
+type OrganizeLookupStart {
+  job: JobDto
+  files: [OrganizeLookupFile!]!
+}
+
+type OrganizeNameTagCategory {
+  name: String!
+  items: [OrganizeNameTagItem!]!
+}
+
+type OrganizeNameTagItem {
+  label: String!
+  token: String!
+}
+
+type OrganizeNameTags {
+  categories: [OrganizeNameTagCategory!]!
+  presets: [String!]!
+  defaultPattern: String!
+}
+
+type OrganizeOptions {
+  artist: Boolean!
+  album: Boolean!
+  rename: Boolean!
+  pattern: String!
+  divers: Boolean!
+  diversMin: Int!
+  keepAlbums: Boolean!
+  dedup: Boolean!
+  removeEmpty: Boolean!
+  reportUntagged: Boolean!
+  filtersOpen: Boolean!
+}
+
+type OrganizePlanDto {
+  sessionId: UUID!
+  options: OrganizeOptions!
+  rows: [OrganizePlanRow!]!
+  totalRows: Int!
+  stats: OrganizePlanStats!
+  statusText: String!
+  filtersSummary: String!
+  albumFolders: [OrganizeAlbumFolder!]!
+  preview: OrganizePreview!
+  canApply: Boolean!
+}
+
+type OrganizePlanRow {
+  index: Int!
+  status: String!
+  action: String!
+  tooltip: String
+  destination: String
+  missing: [String!]!
+  defaultChecked: Boolean!
+  needsLookup: Boolean!
+}
+
+type OrganizePlanStats {
+  analyzed: Int!
+  move: Int!
+  inPlace: Int!
+  untagged: Int!
+  duplicate: Int!
+  divers: Int!
+  fromDivers: Int!
+  album: Int!
+  albumDirs: Int!
+}
+
+type OrganizePreview {
+  text: String!
+  warning: Boolean!
+  unknownTokens: [String!]!
+}
+
+type OrganizeProposalRow {
+  jobId: UUID!
+  itemKey: String!
+  status: String!
+  message: String
+  path: String
+  data: Any
+  at: Float!
+}
+
+type OrganizeSessionDto {
+  id: UUID!
+  root: String!
+  rootDb: String!
+  jobId: UUID
+  state: String!
+  total: Int!
+  read: Int!
+  createdAt: Float!
+  updatedAt: Float!
+  message: String
+}
+
+type OrganizeStateDto {
+  session: OrganizeSessionDto
+  defaultRoot: String!
+  options: OrganizeOptions!
+  targetFormat: String!
+}
+
+type PendingDownload {
+  id: UUID!
+  track: DeezerTrack!
+  addedAt: Float!
+}
+
+type PresenceChangedEvent {
+  ready: Boolean!
+  files: Int!
+  version: Long!
+  reason: String!
+}
+
+type PresenceMatchFile {
+  path: String!
+  reason: String!
+  bitrate: Int
+  fileSize: Long
+  ext: String
+}
+
+type PresenceVerdict {
+  key: String!
+  state: PresenceState!
+  reason: String
+  files: [PresenceMatchFile!]!
+}
+
+type QualityRedownloadOutcome {
+  jobs: [JobDto!]!
+  requested: Int!
+  skipped: Int!
+  skippedPaths: [String!]!
+}
+
+type QualityRow {
+  uid: Long!
+  path: String!
+  title: String
+  artist: String
+  album: String
+  format: String
+  bitrate: Int
+  duration: Float
+  referenceDuration: Float
+  referenceState: String!
+  score: Int!
+  defects: [DefectInfo!]!
+  measures: Any
+  cells: Any!
+  tooltips: Any!
+  tags: Any
+  error: String
+  onDisk: Boolean!
+  updatedAt: Float!
+  status: String
+  statusDetail: String
+  redownloadJobId: UUID
+}
+
+type QualityRowsPage {
+  items: [QualityRow!]!
+  total: Int!
+  flagged: Int!
+  errors: Int!
+  referencesPending: Int!
+  folder: String
+  thresholds: QualityThresholds
+}
+
+type QualityThresholds {
+  hissDb: Float!
+  cracklePct: Float!
+  clippingPct: Float!
+  gapDensityPct: Float!
+  durationExcess: Float!
+  durationGap: Float!
+  tailSeconds: Float!
+  headSeconds: Float!
+  deep: Boolean!
+}
+
+type QualityUpdate {
+  reason: String!
+  entries: [QualityRow!]!
+  removed: [String!]
+}
+
+type ReferenceDurations {
+  closest(measured: Float): Float
+  key: String!
+  durations: [Float!]!
+  fetchedAt: Float
+  found: Boolean!
+  concluded: Boolean!
+}
+
+type SearchCover {
+  query: String!
+  url: String
+}
+
+type SearchHistoryEntry {
+  query: String!
+  position: Int!
+  updatedAt: Float!
+}
+
+type SearchResult {
+  query: String!
+  kind: SearchKind!
+  tracks: [DeezerTrack!]!
+  entities: [DeezerEntity!]!
+  header: DeezerEntity
+  error: String
+}
+
+type ServiceEvent {
+  id: Long!
+  service: String!
+  type: String!
+  key: String
+  data: Any
+  at: Float!
+}
+
 type ServiceHealth {
   service: String!
   reachable: Boolean!
@@ -84,6 +697,42 @@ type ServiceInfo {
   tools: [ToolStatus!]!
 }
 
+type TableCount {
+  table: String!
+  rows: Long!
+  deleted: Long!
+}
+
+type TagProposal {
+  path: String!
+  confidence: String!
+  score: Float!
+  source: String!
+  current: [KeyValuePairOfStringAndNullableString!]!
+  proposed: [KeyValuePairOfStringAndNullableString!]!
+  missing: [String!]!
+  contradicted: [String!]!
+  coverUrl: String
+  deezerId: Long
+  note: String
+  replaces: [KeyValuePairOfStringAndNullableString!]
+  title: String
+  artist: String
+  album: String
+  seconds: Int
+  query: String
+  duration: Int
+  index: Int!
+  titleTagged: Boolean!
+}
+
+type TagSuggestion {
+  field: String!
+  label: String!
+  value: String!
+  count: Int!
+}
+
 type ToolStatus {
   name: String!
   available: Boolean!
@@ -92,12 +741,196 @@ type ToolStatus {
   detail: String
 }
 
+type TrackDto {
+  path: String!
+  title: String
+  artist: String
+  album: String
+  albumArtist: String
+  genre: String
+  year: String
+  trackNo: String
+  duration: Float
+  bitrate: Int
+  sampleRate: Int
+  channels: Int
+  codec: String
+  ext: String
+  fileSize: Long
+  fileMtime: Float
+  coverSha1: String
+  source: String
+  inHistory: Boolean!
+  historyPos: Int
+  onDisk: Boolean!
+  archiveState: String!
+  archiveBytes: Long
+  updatedAt: Float!
+  format: String
+  archiveKey: String
+  archiveSourceBytes: Long
+  archiveBitrate: Int
+  historyCoverSha1: String
+  localPath: String
+}
+
+type TrackPage {
+  items: [TrackDto!]!
+  total: Int!
+  totalOnDisk: Int!
+  totalMissing: Int!
+}
+
+type TracksChangedEvent {
+  paths: [String!]!
+  reason: String!
+}
+
+input ConvertItemInput {
+  localPath: String!
+  deezerId: Long
+}
+
+input DownloadTrackInput {
+  id: Long!
+  title: String!
+  artist: String!
+  album: String
+  duration: Float!
+  artistId: Long
+  albumId: Long
+  previewUrl: String
+  coverSmall: String
+  coverBig: String
+  link: String
+  trackPosition: Int
+  diskNumber: Int
+}
+
+input ExportOptionsInput {
+  format: String!
+  quality: String!
+}
+
+input OrganizeOptionsInput {
+  artist: Boolean! = true
+  album: Boolean! = true
+  rename: Boolean! = false
+  pattern: String! = "%titre% - %artiste%"
+  divers: Boolean! = false
+  diversMin: Int! = 3
+  keepAlbums: Boolean! = true
+  dedup: Boolean! = true
+  removeEmpty: Boolean! = true
+  reportUntagged: Boolean! = true
+  filtersOpen: Boolean! = false
+}
+
+input OrganizeTagWriteInput {
+  path: String!
+  fields: [TagFieldInput!]!
+  overwriteExisting: Boolean! = false
+}
+
+input PresenceQueryInput {
+  key: String!
+  title: String!
+  artist: String!
+  album: String
+  ext: String
+}
+
+input QualityThresholdsInput {
+  hissDb: Float!
+  cracklePct: Float!
+  clippingPct: Float!
+  gapDensityPct: Float!
+  durationExcess: Float!
+  durationGap: Float!
+  tailSeconds: Float!
+  headSeconds: Float!
+  deep: Boolean!
+}
+
+input RedownloadItemInput {
+  dbPath: String!
+  artist: String!
+  title: String!
+  album: String
+  duration: Float
+}
+
+input TagFieldInput {
+  field: String!
+  value: String
+}
+
+input TagLookupFileInput {
+  path: String!
+  title: String
+  artist: String
+  album: String
+  albumArtist: String
+  genre: String
+  year: String
+  trackNo: String
+  duration: Float
+  titleTagged: Boolean
+  trackTotal: String
+  disc: String
+}
+
+input TagValueInput {
+  field: String!
+  value: String
+}
+
+input TrackQueryInput {
+  search: String
+  includeMissing: Boolean! = false
+  historyOnly: Boolean! = false
+  folder: String
+  sortBy: String
+  descending: Boolean! = false
+  offset: Int! = 0
+  limit: Int! = 500
+}
+
+input WriteTagsItemInput {
+  path: String!
+  tags: [TagValueInput!]!
+  coverUrl: String
+  overwriteExisting: Boolean! = false
+}
+
+enum EntityKind {
+  ARTIST
+  ALBUM
+  PLAYLIST
+  TRACK
+}
+
 enum JobStatus {
   QUEUED
   RUNNING
   SUCCEEDED
   FAILED
   CANCELLED
+}
+
+enum PresenceState {
+  PENDING
+  ABSENT
+  POSSIBLE
+  PRESENT
+}
+
+enum SearchKind {
+  ALL
+  TRACK
+  ARTIST
+  ALBUM
+  PLAYLIST
 }
 
 "The `Any` scalar type represents any valid GraphQL value."

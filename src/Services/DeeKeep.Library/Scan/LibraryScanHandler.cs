@@ -40,13 +40,10 @@ public sealed class LibraryScanHandler(
         context.Report(0, files.Count, $"{files.Count} fichiers audio relevés");
 
         Dictionary<string, Dictionary<string, object?>> existing;
-        HashSet<string> archived;
         using (var conn = db.Open(readOnly: true))
         {
             existing = conn.QueryRows("SELECT * FROM tracks").GroupBy(r => LibraryPaths.Key(r.Str("path") ?? ""))
                 .ToDictionary(g => g.Key, g => g.OrderBy(r => r.Long("deleted") ?? 0).First(), StringComparer.Ordinal);
-            archived = conn.QueryRows("SELECT path FROM archive WHERE deleted = 0 AND key IS NOT NULL AND key <> ''")
-                .Select(r => LibraryPaths.Key(r.Str("path") ?? "")).ToHashSet(StringComparer.Ordinal);
         }
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -97,42 +94,18 @@ public sealed class LibraryScanHandler(
         }
         Flush();
 
-        // Fichiers disparus : un titre de l'historique devient « history » (consultable), un titre
-        // que seul le disque connaissait reçoit une pierre tombale — sauf s'il est archivé, il
-        // reste alors affiché et restaurable. Rien n'est touché si le parcours n'a rien trouvé
-        // (disque démonté).
-        var rootKey = LibraryPaths.Key(paths.ToDb(root)).TrimEnd('\\') + "\\";
-        var tombstones = new List<string>();
-        var toHistory = new List<IReadOnlyDictionary<string, object?>>();
-        if (files.Count > 0)
-        {
-            foreach (var (key, row) in existing)
-            {
-                if ((row.Long("deleted") ?? 0) != 0 || seen.Contains(key) || !key.StartsWith(rootKey, StringComparison.Ordinal)) continue;
-                var path = row.Str("path")!;
-                if (File.Exists(paths.ToLocal(path))) continue;   // exclu du parcours (dossier caché), mais présent
-                if ((row.Long("in_history") ?? 0) != 0)
-                {
-                    if (row.Str("source") == "history") continue;
-                    var content = TrackWriter.Content(row);
-                    content["source"] = "history";
-                    toHistory.Add(content);
-                }
-                else if (!archived.Contains(key)) tombstones.Add(path);
-            }
-            writer.Write([], toHistory, tombstones);
-        }
-
+        // Comme l'original, une collecte ne pose aucune pierre tombale : une ligne dont le fichier a
+        // disparu reste en base (affichée avec « Titres absents du disque », restaurable si archivée).
+        var missing = existing.Count(kv => (kv.Value.Long("deleted") ?? 0) == 0 && !seen.Contains(kv.Key) && files.Count > 0);
         disk.InvalidateAll();
         events.Publish(EventTypes.TracksChanged, new TracksChangedEvent([], "scan"));
-        if (tombstones.Count > 0) events.Publish(EventTypes.TracksRemoved, new TracksChangedEvent(tombstones, "scan"));
-        var message = $"{files.Count} fichiers audio relevés : {added} nouveau(x), {updated} relu(s), {unchanged} inchangé(s), {tombstones.Count} disparu(s)";
+        var message = $"{files.Count} fichiers audio relevés : {added} nouveau(x), {updated} relu(s), {unchanged} inchangé(s), {missing} absent(s) du disque";
         logger.LogInformation("Collecte de la bibliothèque : {Message}", message);
         context.Report(files.Count, files.Count, message, force: true);
         return new JsonObject
         {
             ["files"] = files.Count, ["read"] = read, ["added"] = added, ["updated"] = updated, ["unchanged"] = unchanged,
-            ["removed"] = tombstones.Count, ["toHistory"] = toHistory.Count, ["message"] = message,
+            ["missing"] = missing, ["message"] = message,
         };
     }
 
