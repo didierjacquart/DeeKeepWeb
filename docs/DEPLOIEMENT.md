@@ -22,6 +22,16 @@ Empreinte mémoire visée : 50 à 90 Mo par service, soit 400 à 500 Mo au total
 (Raspberry Pi 4 ou 5 avec 2 Go conseillés ; 1 Go possible en réduisant la
 concurrence des tâches).
 
+Téléchargements simultanés : adaptés au serveur. Le plafond vient de la machine
+(un par cœur, 350 Mo de mémoire comptés par extraction après 768 Mo réservés,
+6 au plus) ; toutes les 10 s, la limite perd une place si le processeur dépasse
+90 % ou si moins de 12 % de la mémoire reste libre, et en gagne une si des
+extractions attendent, que le processeur reste sous 70 % et la mémoire libre
+au-dessus de 25 %. Réglages (section `Downloader`) : `MaxParallel` (plafond
+imposé, 0 = automatique), `MinParallel` (plancher, 1), `AdaptiveParallel`
+(`false` = toujours au plafond). La limite courante et la charge mesurée
+s'affichent dans la page Diagnostic (« extractions simultanées »).
+
 ## Construire le paquet (sur le poste Windows)
 
 ```powershell

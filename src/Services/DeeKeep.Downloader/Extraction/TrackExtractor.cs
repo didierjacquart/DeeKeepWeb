@@ -280,28 +280,3 @@ public sealed class TrackExtractor(
     public static bool SamePath(string a, string b) =>
         string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 }
-
-/// <summary>
-/// Plafond commun des extractions simultanées (Musique, Réencoder, Qualité confondus) :
-/// chaque type de tâche a sa concurrence, mais yt-dlp et ffmpeg se partagent la machine.
-/// </summary>
-public sealed class ExtractionGate(Microsoft.Extensions.Options.IOptions<DownloaderOptions> options)
-{
-    private readonly SemaphoreSlim _slots = new(Math.Max(1, options.Value.MaxParallel));
-
-    public async Task<IDisposable> EnterAsync(CancellationToken ct)
-    {
-        await _slots.WaitAsync(ct);
-        return new Releaser(_slots);
-    }
-
-    private sealed class Releaser(SemaphoreSlim slots) : IDisposable
-    {
-        private int _released;
-
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _released, 1) == 0) slots.Release();
-        }
-    }
-}

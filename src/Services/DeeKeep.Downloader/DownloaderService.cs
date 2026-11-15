@@ -22,12 +22,15 @@ public static class DownloaderService
     public static IServiceCollection AddDownloaderService(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<DownloaderOptions>(configuration.GetSection("Downloader"));
-        // Concurrence prudente par défaut (Raspberry Pi) ; configurable : Jobs:downloader:Concurrency:<type>.
-        // Le plafond commun (Downloader:MaxParallel) borne de toute façon yt-dlp + ffmpeg.
-        services.PostConfigure<JobWorkerOptions>(o =>
+        // Le nombre d'extractions qui tournent vraiment est fixé par ExtractionGate (plafond tiré de la
+        // machine, ajusté à la charge). Chaque type d'extraction admet donc au moins ce plafond : une
+        // concurrence plus basse (Jobs:downloader:Concurrency:<type>, ancien réglage) brimerait la hausse.
+        services.AddSingleton<ISystemLoadProbe, ProcSystemLoadProbe>();
+        services.AddOptions<JobWorkerOptions>().PostConfigure<IOptions<DownloaderOptions>, ISystemLoadProbe>((o, downloader, probe) =>
         {
+            var ceiling = ParallelismPolicy.Ceiling(downloader.Value, Environment.ProcessorCount, probe.TotalMemory);
             foreach (var type in new[] { DownloaderJobTypes.Download, DownloaderJobTypes.Convert, DownloaderJobTypes.Redownload })
-                o.Concurrency.TryAdd(type, 2);
+                o.Concurrency[type] = Math.Max(o.Concurrency.GetValueOrDefault(type), ceiling);
             o.Concurrency.TryAdd(DownloaderJobTypes.UpdateYtDlp, 1);
         });
         services.AddSingleton<DownloaderSettings>();

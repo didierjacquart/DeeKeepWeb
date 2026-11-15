@@ -12,11 +12,21 @@ namespace DeeKeep.Downloader.Settings;
 public sealed class DownloaderOptions
 {
     /// <summary>
-    /// Extractions simultanées, tous écrans confondus (Musique, Réencoder, Qualité).
-    /// L'original en lançait 10 par écran sans plafond commun ; sur un Raspberry Pi,
-    /// ffmpeg et la bande passante saturent bien avant (et YouTube se méfie).
+    /// Plafond des extractions simultanées, tous écrans confondus (Musique, Réencoder, Qualité) ;
+    /// 0 = déduit de la machine (un par cœur, borné par la mémoire, 6 au plus). L'original en
+    /// lançait 10 par écran sans plafond commun ; sur un Raspberry Pi, ffmpeg et la bande
+    /// passante saturent bien avant (et YouTube se méfie).
     /// </summary>
-    public int MaxParallel { get; set; } = 2;
+    public int MaxParallel { get; set; }
+
+    /// <summary>Plancher des extractions simultanées, même machine chargée.</summary>
+    public int MinParallel { get; set; } = 1;
+
+    /// <summary>
+    /// Ajuste le nombre d'extractions simultanées à la charge du serveur (processeur, mémoire),
+    /// entre <see cref="MinParallel"/> et le plafond ; faux = toujours au plafond.
+    /// </summary>
+    public bool AdaptiveParallel { get; set; } = true;
 
     /// <summary>Tentatives par piste (<c>max_retries</c>).</summary>
     public int MaxRetries { get; set; } = 10;

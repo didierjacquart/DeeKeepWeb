@@ -4,6 +4,7 @@ using DeeKeep.Common.Hosting;
 using DeeKeep.Common.Jobs;
 using DeeKeep.Common.Processes;
 using DeeKeep.Contracts;
+using DeeKeep.Downloader.Extraction;
 using DeeKeep.Downloader.Settings;
 
 namespace DeeKeep.Downloader.Tools;
@@ -13,7 +14,7 @@ namespace DeeKeep.Downloader.Tools;
 /// yt-dlp, ffmpeg, ffprobe, deno, fichier cookies.txt. Mis en cache une minute :
 /// lancer quatre processus à chaque affichage pèserait sur un Raspberry Pi.
 /// </summary>
-public sealed class DownloaderToolStatus(ProcessRunner runner, DownloaderSettings settings) : IToolStatusProvider
+public sealed class DownloaderToolStatus(ProcessRunner runner, DownloaderSettings settings, ExtractionGate gate) : IToolStatusProvider
 {
     private readonly SemaphoreSlim _lock = new(1, 1);
     private IReadOnlyList<ToolStatus>? _cache;
@@ -26,7 +27,22 @@ public sealed class DownloaderToolStatus(ProcessRunner runner, DownloaderSetting
 
     public void Invalidate() => _cache = null;
 
-    public async Task<IReadOnlyList<ToolStatus>> GetAsync(CancellationToken ct)
+    public async Task<IReadOnlyList<ToolStatus>> GetAsync(CancellationToken ct) => [.. await ProbeToolsAsync(ct), Parallelism(gate.Status())];
+
+    /// <summary>Extractions simultanées (hors cache : la limite bouge avec la charge).</summary>
+    public static ToolStatus Parallelism(ParallelismStatus s)
+    {
+        var load = new List<string>();
+        if (s.Load?.CpuBusy is { } cpu) load.Add($"processeur {cpu:P0}");
+        if (s.Load?.MemoryFree is { } free) load.Add($"mémoire libre {free:P0}");
+        var detail = s.Adaptive
+            ? "Ajusté toutes les 10 s selon la charge du serveur" + (load.Count > 0 ? " (" + string.Join(", ", load) + ")" : "") + "."
+            : "Nombre fixe (Downloader:AdaptiveParallel désactivé ou plafond égal au plancher).";
+        detail += $" En cours : {s.Active}, en attente : {s.Waiting}.";
+        return new ToolStatus("extractions simultanées", true, $"{s.Limit} / {s.Ceiling}", null, detail);
+    }
+
+    private async Task<IReadOnlyList<ToolStatus>> ProbeToolsAsync(CancellationToken ct)
     {
         if (_cache is { } cached && DateTime.UtcNow - _cachedAt < TimeSpan.FromMinutes(1)) return cached;
         await _lock.WaitAsync(ct);
