@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-  Lance DeeKeep en développement : les 5 microservices, la passerelle et le client Angular.
+  Lance DeeKeep en développement : les 5 microservices, la passerelle et le client React (Vite).
   Configuration : config/dev/appsettings.json (base = COPIE dans .data/, jamais la base réelle).
   Ctrl+C arrête tout.
 #>
@@ -29,7 +29,10 @@ try {
     }
     if (-not $NoWeb) {
         Push-Location (Join-Path $root "web")
-        try { npx ng serve --host 0.0.0.0 } finally { Pop-Location }
+        try {
+            if (-not (Test-Path node_modules)) { npm ci }
+            npx vite --host 0.0.0.0
+        } finally { Pop-Location }
     } else {
         Write-Host "Passerelle : http://127.0.0.1:5000  (Ctrl+C pour arrêter)"
         Wait-Process -Id ($processes | ForEach-Object Id)

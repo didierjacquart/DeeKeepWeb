@@ -1,6 +1,6 @@
 # 04 — Qualité sonore, durées de référence, analyse locale (Réencoder), utilitaires
 
-> Spécification fonctionnelle et technique destinée à la réécriture web (Angular + GraphQL + microservices .NET, serveur Linux ARM64 peu puissant, base SQLite `deekeep_cache.db` conservée).
+> Spécification fonctionnelle et technique destinée à la réécriture web (React + GraphQL + microservices .NET, serveur Linux ARM64 peu puissant, base SQLite `deekeep_cache.db` conservée).
 > Source analysée : application desktop PyQt6 `D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`. Les références `fichier:ligne` renvoient à ce code (état du 26/10/2026).
 > **Le code fait foi** : quand un commentaire Python contredit le code, c'est signalé (§6).
 

@@ -2,7 +2,7 @@
 
 > Spécification fonctionnelle et technique issue de l'analyse du code Python/PyQt6 de DeeKeep
 > (`D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`, état du dépôt au commit `1122895`, 25/10/2026).
-> Objectif : permettre la réimplémentation en Angular + GraphQL + microservices .NET (serveur Linux ARM64)
+> Objectif : permettre la réimplémentation en React + GraphQL + microservices .NET (serveur Linux ARM64)
 > **sans lire le Python**. Toutes les références `fichier:ligne` pointent vers ce dépôt.
 >
 > Périmètre : `deekeep/ui/library_page.py`, `deekeep/ui/player.py`, `deekeep/library/library_index.py`,
@@ -1082,7 +1082,7 @@ CREATE INDEX idx_mirror_updated ON archive (updated_at);
 - Servir les fichiers par un point HTTP authentifié avec **Range** (`PhysicalFile(..., enableRangeProcessing: true)`), types MIME de §3.4.
 - L'égaliseur ne doit **pas** être calculé côté serveur (FFT Python + ffmpeg par écoute = trop coûteux sur ARM) : utiliser Web Audio `AnalyserNode` (`fftSize` 2048 à 44,1/48 kHz, `smoothingTimeConstant = 0`), regrouper les raies sur les **mêmes bornes en Hz** que §3.10 (`c/√2 … c·√2`, en excluant le continu), moyenne quadratique, même pente +2 dB/bande, même fenêtre −66…−6 dB **après étalonnage** (l'AnalyserNode utilise une fenêtre de Blackman et une autre référence de dB : calibrer avec une sinusoïde pleine échelle pour retrouver 0 dB), même dynamique d'affichage (attaque instantanée, −0,055/40 ms, crête 12 ticks puis −0,02).
 - Extraits Deezer : CORS des CDN Deezer non garanti → l'`AnalyserNode` lirait du silence et `crossOrigin` peut bloquer la lecture ; prévoir un proxy serveur ou désactiver l'égaliseur pour les extraits. Rafraîchir l'URL `preview` expirée via l'API Deezer.
-- « Un seul son à la fois » : un **service Angular unique** possédant deux éléments audio (lecteur, extrait) et appliquant la matrice de §2.17.
+- « Un seul son à la fois » : un **service client unique** possédant deux éléments audio (lecteur, extrait) et appliquant la matrice de §2.17.
 - Raccourcis : limiter au composant lecteur ayant le focus (Espace fait défiler la page / active les boutons dans un navigateur) ; touches média via `navigator.mediaSession` (`nexttrack`, `previoustrack`, `play`, `pause`, `seekforward`, `seekbackward`).
 - Volume : appliquer la courbe `(v/100)²` ; persister au moins pour la session (le desktop : 85 par défaut, non persisté).
 - Jaquette : la table `covers` (dédoublonnée par SHA-1) est la source naturelle côté web ; la lecture `APIC`/FLAC peut se faire côté serveur avec TagLib#.

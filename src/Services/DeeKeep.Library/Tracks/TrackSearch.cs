@@ -5,7 +5,7 @@ namespace DeeKeep.Library.Tracks;
 
 /// <summary>
 /// Recherche multi-tags, cinq propositions et tri de la page Bibliothèque — portage de
-/// <c>library_page.py:676-914</c> (spec 02 §2.2 à §2.4). Le client Angular applique les
+/// <c>library_page.py:676-914</c> (spec 02 §2.2 à §2.4). Le client React applique les
 /// mêmes règles sur ses données en cache ; le serveur les sert à qui l'interroge.
 /// </summary>
 public static class TrackSearch

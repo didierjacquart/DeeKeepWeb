@@ -485,8 +485,13 @@ $RECYCLE.BIN/
 .data/
 web/node_modules/
 web/dist/
-web/.angular/
 src/Gateway/DeeKeep.Gateway/wwwroot/
 
 # Scripts d'exploitation du serveur : la règle « [Bb]in/ » plus haut les excluait.
 !deploy/bin/
+
+# Paquets produits par deploy/publish.ps1
+deploy/out/
+
+# Verrous locaux de Claude Code
+.claude/*.lock

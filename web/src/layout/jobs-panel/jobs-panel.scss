@@ -1,0 +1,48 @@
+.dk-jobs-panel {
+  position: fixed;
+  z-index: 60;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  background: var(--dk-surface);
+  border-left: 1px solid var(--dk-glass);
+  padding: 16px 16px calc(16px + var(--dk-player-height) + var(--dk-safe-bottom));
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: -12px 0 40px rgba(0, 0, 0, 0.5);
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .job {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 12px;
+    border: 1px solid var(--dk-glass);
+    border-radius: 10px;
+    background: rgba(28, 30, 38, 0.6);
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .name {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .small {
+    font-size: 11px;
+  }
+  .ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

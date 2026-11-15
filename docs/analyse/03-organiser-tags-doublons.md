@@ -1,7 +1,7 @@
 # 03 — Organiser, compléter les tags, rechercher les doublons
 
 > Spécification fonctionnelle et technique destinée à la réécriture web
-> (Angular + GraphQL + microservices .NET, serveur Linux ARM64, base SQLite conservée).
+> (React + GraphQL + microservices .NET, serveur Linux ARM64, base SQLite conservée).
 > Source analysée : application desktop DeeKeep (Python / PyQt6), dossier
 > `D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`. Toutes les références
 > `fichier:ligne` renvoient à ce code source.
@@ -1109,7 +1109,7 @@ Entrée `[{track: {title, artist, album, …}, match: {state: present|similar, r
 - **Deezer** : ajouter un limiteur (≈ 50 requêtes / 5 s) et une relance sur quota (`error.code == 4`), absents aujourd'hui ; un fichier coûte jusqu'à 4 requêtes de recherche + 2 de détails.
 - **AcoustID** : limiteur ≈ 3 requêtes/s ; une empreinte de 120 s fait plusieurs Ko → préférer **POST** (formulaire, éventuellement gzip) au GET actuel pour éviter les URL trop longues.
 - **Cache d'albums Deezer** : le rendre partagé et borné (LRU / durée de vie) côté service ; envisager un cache persistant (SQLite) comme `reference_durations`.
-- **Secrets** : la clé AcoustID reste un secret serveur (pas exposée au client Angular) ; ne pas la journaliser dans les URL de requêtes.
+- **Secrets** : la clé AcoustID reste un secret serveur (pas exposée au client web) ; ne pas la journaliser dans les URL de requêtes.
 
 ### 6.5 Cohérences et anomalies à arbitrer avant portage
 

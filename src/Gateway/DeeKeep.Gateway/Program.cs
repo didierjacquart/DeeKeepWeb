@@ -28,6 +28,6 @@ app.MapDeeKeepDefaults();
 app.MapAuthEndpoints();
 app.MapGraphQL();
 app.MapReverseProxy();
-// Application monopage : toute autre route renvoie la coquille Angular.
+// Application monopage : toute autre route renvoie la coquille du client React.
 app.MapFallbackToFile("index.html");
 app.Run();

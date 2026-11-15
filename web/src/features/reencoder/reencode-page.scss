@@ -1,0 +1,70 @@
+.dk-reencode-page {
+  display: block;
+  .sub {
+    margin: 0 0 18px;
+  }
+  .dk-actions,
+  .global,
+  .dk-filters {
+    margin-bottom: 14px;
+  }
+  .global {
+    display: grid;
+    gap: 6px;
+  }
+  .dk-filters {
+    align-items: center;
+  }
+  .control-btn.checked {
+    background: rgba(0, 229, 255, 0.12);
+    border-color: rgba(0, 229, 255, 0.45);
+    color: var(--dk-primary);
+  }
+  .grid {
+    grid-template-columns:
+      34px 52px 56px minmax(150px, 1.4fr) minmax(90px, 0.9fr) minmax(160px, 1.6fr)
+      130px 120px minmax(120px, 1fr);
+  }
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .path {
+    color: var(--dk-faint);
+  }
+  .muted {
+    color: var(--dk-faint);
+  }
+  .info {
+    color: var(--dk-primary);
+  }
+  .ok {
+    color: var(--dk-success);
+  }
+  .err {
+    color: var(--dk-error);
+  }
+  @media (max-width: 899px) {
+    .grid {
+      grid-template-columns: 34px 1fr 44px;
+    }
+    .dk-thead.grid > :nth-child(2) {
+      display: none;
+    }
+    .dk-row.grid {
+      min-height: 64px;
+    }
+    .dk-row.grid > :nth-child(2) {
+      order: 3;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+    }
+    input.dk-check {
+      width: 22px;
+      height: 22px;
+    }
+  }
+}

@@ -1,0 +1,106 @@
+.dk-archive-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .state {
+    margin: 0;
+    font-size: 12px;
+    color: var(--dk-faint);
+  }
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 20px;
+    background: var(--dk-charcoal);
+  }
+  .intro {
+    margin: 0;
+    font-size: 12px;
+    color: var(--dk-faint);
+    line-height: 1.5;
+  }
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .caption {
+    font-size: 12px;
+    color: var(--dk-muted);
+  }
+  .input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .input-row .dk-input {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .small {
+    font-size: 11px;
+    word-break: break-all;
+  }
+  .gauge {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .gauge.warn {
+    color: var(--dk-primary);
+  }
+  .gauge.ok {
+    color: var(--dk-success);
+  }
+  .meter {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--dk-gauge-off);
+  }
+  .meter .used {
+    background: var(--dk-gradient);
+  }
+  .meter .todo {
+    background: repeating-linear-gradient(45deg, var(--dk-warn), var(--dk-warn) 4px, transparent 4px, transparent 8px);
+  }
+  .buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  @media (max-width: 899px) {
+    .bar > button,
+    .buttons > button {
+      min-height: 40px;
+    }
+    .bar .toggle {
+      flex: 1 1 100%;
+    }
+    .panel {
+      padding: 14px;
+    }
+    .input-row {
+      flex-wrap: wrap;
+    }
+    .input-row .dk-input {
+      flex-basis: 100%;
+      min-height: 40px;
+    }
+    .buttons > button {
+      flex: 1 1 calc(50% - 10px);
+    }
+    .buttons .dk-spacer {
+      display: none;
+    }
+  }
+}

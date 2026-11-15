@@ -1,0 +1,157 @@
+.dk-quality-table {
+  .scroller {
+    overflow-x: auto;
+  }
+  .inner {
+    min-width: 1750px;
+    @media (max-width: 899px) {
+      min-width: 0;
+    }
+  }
+  .vp {
+    height: min(68vh, 760px);
+    @media (max-width: 899px) {
+      height: 62vh;
+    }
+  }
+
+  .grid-cols {
+    grid-template-columns:
+      34px 62px 52px minmax(160px, 1.5fr) minmax(120px, 1fr) minmax(130px, 1.1fr)
+      70px 96px 84px 84px 150px 140px 124px minmax(160px, 1.3fr) 190px 32px;
+  }
+  .dk-thead.grid-cols {
+    grid-template-columns:
+      34px 62px 52px minmax(160px, 1.5fr) minmax(120px, 1fr) minmax(130px, 1.1fr)
+      70px 96px 84px 84px 150px 140px 124px minmax(160px, 1.3fr) 190px 32px;
+  }
+  .dk-row {
+    height: 49px;
+    min-height: 0;
+  }
+  .c-more {
+    display: inline-grid;
+  }
+
+  .score {
+    font-weight: 700;
+    &.ok {
+      color: var(--dk-success);
+    }
+    &.warn {
+      color: var(--dk-warn);
+    }
+    &.bad {
+      color: #ff8a80;
+    }
+  }
+  .c-defects.ok {
+    color: var(--dk-success);
+  }
+  .c-defects.warn {
+    color: var(--dk-warn);
+  }
+  .c-defects.bad,
+  .bad {
+    color: #ff8a80;
+  }
+  .c-hiss,
+  .c-crackle,
+  .c-clip,
+  .c-gaps,
+  .c-dur,
+  .c-blanks,
+  .c-fmt,
+  .c-path {
+    color: var(--dk-muted);
+    &.bad {
+      color: #ff8a80;
+    }
+  }
+  .c-status.ok {
+    color: var(--dk-success);
+  }
+  .c-status.warn {
+    color: var(--dk-warn);
+  }
+  .c-status.bad {
+    color: #ff8a80;
+  }
+  .c-title b {
+    font-weight: 600;
+  }
+  .c-play button {
+    min-width: 36px;
+    min-height: 36px;
+  }
+
+  // Mobile : une carte par titre, cibles de 40 px.
+  @media (max-width: 899px) {
+    .dk-row.grid-cols {
+      height: 110px;
+      margin-bottom: 8px;
+      grid-template-columns: 40px minmax(0, 1fr) 48px 36px;
+      grid-template-areas:
+        'chk title score more'
+        'play defects defects fmt'
+        'play status status status';
+      row-gap: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      > * {
+        white-space: normal;
+      }
+      .c-chk {
+        grid-area: chk;
+        input {
+          width: 24px;
+          height: 24px;
+        }
+      }
+      .c-title {
+        grid-area: title;
+        white-space: nowrap;
+      }
+      .c-score {
+        grid-area: score;
+        font-size: 18px;
+        text-align: right;
+      }
+      .c-more {
+        grid-area: more;
+        width: 36px;
+        height: 36px;
+      }
+      .c-play {
+        grid-area: play;
+        button {
+          width: 40px;
+          height: 40px;
+        }
+      }
+      .c-defects {
+        grid-area: defects;
+        font-size: 12px;
+      }
+      .c-fmt {
+        grid-area: fmt;
+        font-size: 11px;
+        text-align: right;
+      }
+      .c-status {
+        grid-area: status;
+        font-size: 12px;
+      }
+      .c-artist,
+      .c-hiss,
+      .c-crackle,
+      .c-clip,
+      .c-gaps,
+      .c-dur,
+      .c-blanks,
+      .c-path {
+        display: none;
+      }
+    }
+  }
+}

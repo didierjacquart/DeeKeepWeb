@@ -1,0 +1,69 @@
+// La racine n'ajoute pas de boîte : titre, contenu et actions restent les enfants directs du panneau (mise en page en colonne).
+.dk-tag-review-dialog {
+  display: contents;
+  .dk-dialog-title {
+    color: var(--dk-primary);
+  }
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 72vh;
+  }
+  .sub {
+    color: var(--dk-faint);
+    font-size: 12px;
+    margin: 0;
+  }
+  .state {
+    margin: 0;
+    font-size: 13px;
+    color: var(--dk-muted);
+  }
+  .state.warn {
+    color: var(--dk-warn);
+  }
+  .list {
+    overflow: auto;
+  }
+  .row {
+    grid-template-columns: 50px minmax(0, 2.4fr) minmax(0, 1.8fr) minmax(0, 2fr) minmax(0, 1.4fr) 100px minmax(0, 1.8fr);
+  }
+  .row > * {
+    white-space: normal;
+  }
+  .c-found.sure {
+    color: var(--dk-primary);
+  }
+  .c-found.prob {
+    color: var(--dk-warn);
+  }
+  .dim .c-file,
+  .dim .c-cur {
+    color: var(--dk-disabled);
+  }
+  .dk-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  @media (max-width: 899px) {
+    .row {
+      grid-template-columns: 40px 1fr;
+      row-gap: 3px;
+      padding: 10px 12px;
+    }
+    .row > * {
+      grid-column: 2;
+      font-size: 12px;
+    }
+    .row > .c-check {
+      grid-column: 1;
+      grid-row: 1 / span 6;
+    }
+    .c-file {
+      font-weight: 600;
+      font-size: 13px !important;
+    }
+  }
+}

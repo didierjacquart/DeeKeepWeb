@@ -10,18 +10,25 @@ public sealed class FsService(LibraryPaths paths)
 {
     public FsListing List(string? localPath, bool audioOnly)
     {
-        var roots = paths.Roots();
+        // Seules les racines présentes sont proposées (un lecteur débranché n'est pas une destination).
+        var roots = paths.Roots().Where(Directory.Exists).ToList();
+        FsListing RootsListing() => new("", null, roots.Select(r => new FsEntry(r, r, true, null, null, false)).ToList(), roots);
+
         if (string.IsNullOrWhiteSpace(localPath))
         {
-            var first = roots.FirstOrDefault(Directory.Exists);
-            if (first is null) return new FsListing("", null, roots.Select(r => new FsEntry(r, r, true, null, null, false)).ToList(), roots);
-            localPath = first;
+            if (roots.Count == 0) return RootsListing();
+            localPath = roots[0];
         }
         string full;
         try { full = Path.GetFullPath(localPath); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { throw new ArgumentException("Chemin invalide."); }
         if (!paths.IsAllowed(full)) throw new ArgumentException("Dossier hors des racines autorisées.");
-        if (!Directory.Exists(full)) throw new ArgumentException("Dossier introuvable.");
+        // Dossier disparu (ex. dossier de sortie sur un lecteur absent) : on remonte au plus proche
+        // parent existant, sinon on montre les racines — le choix d'un autre dossier reste possible.
+        var existing = full;
+        while (existing is not null && !Directory.Exists(existing)) existing = Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(existing));
+        if (existing is null || !paths.IsAllowed(existing)) return RootsListing();
+        full = existing;
 
         var entries = new List<FsEntry>();
         try
@@ -105,7 +112,9 @@ public sealed class WriteTagsHandler(LibraryPaths paths, FileRegistrar registrar
                 if (!string.IsNullOrEmpty(item.CoverUrl))
                 {
                     using var client = http.CreateClient();
-                    cover = await client.GetByteArrayAsync(item.CoverUrl, ct);
+                    // Jaquette signée de l'icône DeeKeep, comme à l'extraction : la pochette dit
+                    // d'où vient le titre (la jaquette vient du catalogue, jamais déjà marquée).
+                    cover = CoverImage.StampAppIcon(await client.GetByteArrayAsync(item.CoverUrl, ct));
                 }
             }
             catch (HttpRequestException)

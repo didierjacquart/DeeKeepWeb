@@ -25,7 +25,16 @@ public sealed class LibraryPaths(PathMap map, SettingsStore settings, IConfigura
     /// <summary>Dossier de dépôt sur le serveur.</summary>
     public string LocalDownloadDir() => ToLocal(settings.DownloadDir());
 
-    /// <summary>Racines consultables : dossier de dépôt, puis <c>Library:BrowseRoots</c>.</summary>
+    /// <summary>
+    /// <c>Library:BrowseAnywhere</c> : tout le système de fichiers du serveur est consultable
+    /// (poste de développement : tous les lecteurs, chemins réseau UNC compris).
+    /// </summary>
+    public bool BrowseAnywhere => configuration.GetValue<bool>("Library:BrowseAnywhere");
+
+    /// <summary>
+    /// Racines consultables : dossier de dépôt, puis <c>Library:BrowseRoots</c>, puis — avec
+    /// <c>Library:BrowseAnywhere</c> — chaque lecteur prêt (disques, clés USB, lecteurs réseau).
+    /// </summary>
     public IReadOnlyList<string> Roots()
     {
         var roots = new List<string>();
@@ -39,7 +48,19 @@ public sealed class LibraryPaths(PathMap map, SettingsStore settings, IConfigura
         }
         Add(LocalDownloadDir());
         foreach (var child in configuration.GetSection("Library:BrowseRoots").GetChildren()) Add(child.Value);
+        if (BrowseAnywhere) foreach (var drive in ReadyDrives()) Add(drive);
         return roots;
+    }
+
+    private static IEnumerable<string> ReadyDrives()
+    {
+        foreach (var d in DriveInfo.GetDrives())
+        {
+            bool usable;
+            try { usable = d.DriveType is DriveType.Fixed or DriveType.Removable or DriveType.Network && d.IsReady; }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { usable = false; }
+            if (usable) yield return d.RootDirectory.FullName;
+        }
     }
 
     /// <summary>Vrai si <paramref name="localPath"/> est une racine autorisée ou se trouve dessous.</summary>
@@ -48,7 +69,7 @@ public sealed class LibraryPaths(PathMap map, SettingsStore settings, IConfigura
         string full;
         try { full = Path.GetFullPath(localPath); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
-        return Roots().Any(root => IsUnder(full, root));
+        return BrowseAnywhere || Roots().Any(root => IsUnder(full, root));
     }
 
     public static bool IsUnder(string fullPath, string root)

@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "checkJs": false,
+    "types": ["vite/client", "vite-plugin-pwa/client", "vitest/globals"]
+  },
+  "include": ["src", "vite.config.js"]
+}

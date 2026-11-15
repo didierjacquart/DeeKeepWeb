@@ -1,6 +1,6 @@
 # 05 — Couche données de DeeKeep : schéma, empreintes, réglages, accès multi-processus
 
-> Analyse de l'application desktop Python/PyQt6 (`D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`) en vue de la réécriture web (Angular + GraphQL + microservices .NET sur un serveur Linux ARM64).
+> Analyse de l'application desktop Python/PyQt6 (`D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`) en vue de la réécriture web (React + GraphQL + microservices .NET sur un serveur Linux ARM64).
 > Base analysée (lecture seule, `file:...?mode=ro`) : `C:\Users\didie\AppData\Roaming\DeeKeep\deekeep_cache.db` (SQLite 3.50.4, 125 Mo + WAL).
 > Sources lues : `deekeep/db/db_schema.py`, `local_db.py`, `db_init.py`, `cloud_db.py`, `sync_service.py`, `deekeep/ui/sync_ui.py`, `deekeep/core/settings.py`, plus les appelants (`ui/main_window.py`, `ui/library_page.py`, `audio/library_mirror.py`, `audio/quality_scan.py`, `audio/reference_duration.py`, `workers/download_thread.py`, `library/library_index.py`).
 >

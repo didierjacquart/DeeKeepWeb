@@ -1,0 +1,115 @@
+.dk-player-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: none;
+  padding-bottom: var(--dk-safe-bottom);
+  background: rgba(16, 18, 25, 0.97);
+  border-top: 1px solid var(--dk-glass);
+  backdrop-filter: blur(12px);
+  &.visible {
+    display: block;
+  }
+
+  .bar {
+    height: 72px;
+    display: grid;
+    grid-template-columns: minmax(160px, 1fr) auto minmax(200px, 2fr) auto;
+    align-items: center;
+    gap: 16px;
+    padding: 0 16px;
+    @media (max-width: 899px) {
+      grid-template-columns: 1fr auto;
+      grid-template-rows: 1fr auto;
+      gap: 4px 8px;
+      padding: 6px 10px 4px;
+      .seek {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+
+  .track {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    cursor: pointer;
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    font-size: 13px;
+  }
+  .text > span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .title {
+    font-weight: 600;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .play {
+    width: 42px;
+    height: 42px;
+    font-size: 16px;
+  }
+
+  .seek {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+  .time {
+    font-size: 11px;
+    color: var(--dk-faint);
+    font-variant-numeric: tabular-nums;
+    min-width: 38px;
+    text-align: center;
+  }
+  .groove {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--dk-charcoal);
+    cursor: pointer;
+    position: relative;
+    touch-action: none;
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -10px 0;
+    } // zone de clic élargie au doigt
+  }
+  .fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--dk-gradient);
+  }
+
+  .extras {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  input[type='range'] {
+    width: 100px;
+    accent-color: var(--dk-primary);
+  }
+}

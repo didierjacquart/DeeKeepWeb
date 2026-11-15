@@ -1,0 +1,71 @@
+// La racine n'ajoute pas de boîte : titre, contenu et actions restent les enfants directs du panneau (mise en page en colonne).
+.dk-track-dedup-dialog {
+  display: contents;
+  .dk-dialog-title {
+    color: var(--dk-primary);
+  }
+  .content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 70vh;
+  }
+  .sub {
+    color: var(--dk-faint);
+    font-size: 12px;
+    margin: 0;
+  }
+  .tree {
+    overflow: auto;
+  }
+  .head,
+  .head-row {
+    grid-template-columns: minmax(0, 2fr) minmax(140px, 1fr) minmax(0, 2fr);
+  }
+  .track {
+    background: rgba(255, 255, 255, 0.03);
+    font-weight: 600;
+  }
+  .track .t-title {
+    color: var(--dk-warn);
+  }
+  .file {
+    cursor: pointer;
+  }
+  .file .f-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-left: 18px;
+  }
+  .file .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file.keep .f-quality {
+    color: var(--dk-success);
+  }
+  .star {
+    color: var(--dk-primary);
+  }
+  .dk-dialog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  @media (max-width: 899px) {
+    .head-row {
+      grid-template-columns: 1fr;
+      row-gap: 2px;
+    }
+    .file .f-name {
+      padding-left: 0;
+      min-height: 40px;
+    }
+    .file .f-folder {
+      white-space: normal;
+      word-break: break-all;
+      font-size: 11px;
+    }
+  }
+}

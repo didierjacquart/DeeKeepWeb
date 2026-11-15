@@ -2,7 +2,7 @@
 
 > Spécification fonctionnelle et technique issue de l'analyse du code Python/PyQt6 de **DeeKeep**
 > (`D:\000_Logiciel\DeezerMusic`, paquet `deekeep/`), en vue de la réécriture web
-> (Angular + GraphQL + microservices .NET, serveur Linux, base SQLite conservée).
+> (React + GraphQL + microservices .NET, serveur Linux, base SQLite conservée).
 >
 > **Périmètre de ce document**
 >
@@ -1214,7 +1214,7 @@ Les autres clés du fichier (`org_remove_empty`, `org_report_untagged`, `org_kee
 - **Service Extraction** (yt-dlp/ffmpeg/tags) : file de jobs persistante, plafond global, annulation, progression publiée par **subscription GraphQL** `downloadProgress(jobId)` (pourcentage + texte exact du §2.3.3), journal des causes d'échec.
 - **Service Bibliothèque** : index de présence (`lookup` par lot de pistes), règles de rangement, suppression de fichiers, réparation des chemins, streaming audio.
 - **Service Réglages/Historique** : `app_settings`, `searches`, `tracks/covers` (schéma SQLite conservé).
-- Front Angular : pages et dialogues décrits au §2, palette de l'annexe A.
+- Front React : pages et dialogues décrits au §2, palette de l'annexe A.
 
 ---
 

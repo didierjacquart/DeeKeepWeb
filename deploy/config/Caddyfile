@@ -32,10 +32,12 @@
 		Referrer-Policy same-origin
 		-Server
 	}
-	@static path *.js *.css *.woff2 *.svg *.png
+	# Les fichiers de assets/ portent une empreinte dans leur nom : cache permanent.
+	# La coquille et le service worker doivent toujours être revalidés.
+	@static path /assets/* *.woff2 *.svg *.png
 	header @static Cache-Control "public, max-age=31536000, immutable"
-	header /index.html Cache-Control "no-cache"
-	header /ngsw.json Cache-Control "no-cache"
+	@shell path /index.html /sw.js /workbox-*.js /manifest.webmanifest
+	header @shell Cache-Control "no-cache"
 }
 
 {$DEEKEEP_SITE:deekeep.local} {

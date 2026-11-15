@@ -20,7 +20,8 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
             entries = conn.QueryRows("SELECT * FROM tracks WHERE deleted = 0").Select(LibraryEntry.FromRow).ToList();
             archive = LoadArchive(conn);
         }
-        Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = 4 }, Enrich);
+        var root = LibraryRoot();
+        Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = 4 }, e => Enrich(e, root));
         foreach (var e in entries) e.Archive = archive.GetValueOrDefault(e.Path);
 
         var unknownBitrate = entries.Where(e => e.Exists && (e.Bitrate ?? 0) == 0).Select(e => e.Path).ToList();
@@ -35,7 +36,7 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
                   ?? conn.QueryRows("SELECT * FROM tracks WHERE lower(path) = lower(@p) AND deleted = 0", new { p = dbPath }).FirstOrDefault();
         if (row is null) return null;
         var entry = LibraryEntry.FromRow(row);
-        Enrich(entry);
+        Enrich(entry, LibraryRoot());
         entry.Archive = conn.QueryRows("SELECT path, sha1, stamp, key, bytes, bitrate, source_bytes FROM archive WHERE path = @p AND deleted = 0",
             new { p = entry.Path }).Select(ToArchive).FirstOrDefault();
         return entry;
@@ -66,14 +67,31 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
 
     private static int PyTextLength(string? text) => DeeKeep.Common.Text.PyText.Strip(text ?? "").Length;
 
-    private void Enrich(LibraryEntry entry)
+    /// <summary>Dossier de sortie choisi (chemin complet), ou null s'il est illisible.</summary>
+    private string? LibraryRoot()
+    {
+        try { return Path.GetFullPath(paths.LocalDownloadDir()); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return null; }
+    }
+
+    /// <summary>
+    /// « Sur le disque » = le fichier existe <b>dans le dossier de sortie choisi</b> : un fichier
+    /// resté ailleurs (ancien dossier, autre lecteur) compte comme absent, comme un titre supprimé.
+    /// </summary>
+    private void Enrich(LibraryEntry entry, string? root)
     {
         entry.LocalPath = paths.ToLocal(entry.Path);
         var state = disk.Get(entry.LocalPath);
-        entry.Exists = state.Exists;
+        entry.Exists = state.Exists && root is not null && IsInside(entry.LocalPath, root);
         entry.Stamp = state.ArchiveStamp;
         // La taille du disque fait foi, comme dans l'original.
         if (state.Exists) entry.FileSize = state.Size;
+    }
+
+    private static bool IsInside(string localPath, string root)
+    {
+        try { return LibraryPaths.IsUnder(Path.GetFullPath(localPath), root); }
+        catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
     }
 
     public static Dictionary<string, ArchiveRow> LoadArchive(Microsoft.Data.Sqlite.SqliteConnection conn) =>

@@ -1,0 +1,122 @@
+.dk-music-page {
+  display: block;
+  .stats {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 6px 0 14px;
+  }
+  .num {
+    font: 800 26px var(--dk-font-title);
+    color: var(--dk-text);
+  }
+  .lbl {
+    font-size: 15px;
+    color: var(--dk-muted);
+  }
+  .sep {
+    color: var(--dk-separator);
+  }
+  .global {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 18px;
+  }
+  .dk-actions {
+    margin-bottom: 18px;
+  }
+  .grid {
+    grid-template-columns:
+      78px 56px 70px minmax(130px, 2fr) minmax(80px, 1fr) minmax(80px, 1fr) minmax(130px, 1.4fr)
+      minmax(120px, 1fr) 68px;
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .t {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .prog {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    .dk-progress {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+  .x {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 0;
+    background: var(--dk-error-container);
+    color: var(--dk-on-error-container);
+    font: 700 9px var(--dk-font);
+    cursor: pointer;
+    flex: none;
+  }
+  .muted {
+    color: var(--dk-muted);
+  }
+  .info {
+    color: var(--dk-primary);
+  }
+  .ok {
+    color: var(--dk-success);
+  }
+  .err {
+    color: var(--dk-error);
+  }
+  .mstatus {
+    font-size: 11px;
+  }
+  .status {
+    cursor: help;
+  }
+  @media (max-width: 899px) {
+    .grid {
+      grid-template-columns: 64px 1fr 44px;
+      row-gap: 6px;
+    }
+    .dk-thead.grid > :nth-child(3) {
+      display: none;
+    }
+    .dk-row.grid {
+      min-height: 64px;
+      padding: 10px;
+    }
+    .check {
+      flex-direction: column;
+      gap: 6px;
+    }
+    .prog {
+      grid-column: 1 / -1;
+      order: 10;
+    }
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+    }
+    .x {
+      width: 28px;
+      height: 28px;
+    }
+    input.dk-check {
+      width: 22px;
+      height: 22px;
+    }
+    .num {
+      font-size: 22px;
+    }
+  }
+}

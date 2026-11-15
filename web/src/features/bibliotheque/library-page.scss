@@ -1,0 +1,210 @@
+.dk-library-page {
+  display: block;
+  height: 100%;
+  .search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    .dk-input {
+      flex: 1;
+    }
+    .clear {
+      position: absolute;
+      right: 6px;
+      width: 28px;
+      height: 28px;
+      min-height: 28px;
+      border: none;
+    }
+    // Saisie prédictive : calque aligné sur le texte du champ (même police, même marge),
+    // la frappe en transparent, la suite proposée en gris.
+    .predict {
+      position: absolute;
+      inset: 0 40px 0 0;
+      display: flex;
+      align-items: center;
+      padding: 0 15px;
+      font: 13px var(--dk-font);
+      white-space: pre;
+      overflow: hidden;
+      pointer-events: none;
+      .typed {
+        color: transparent;
+      }
+      .rest {
+        color: var(--dk-faint);
+      }
+      kbd {
+        margin-left: 8px;
+        padding: 1px 6px;
+        border: 1px solid var(--dk-glass);
+        border-radius: 4px;
+        font: 10px var(--dk-font);
+        color: var(--dk-faint);
+      }
+    }
+  }
+  .suggest {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 6px 0;
+    list-style: none;
+    background: var(--dk-high);
+    border: 1px solid var(--dk-glass);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    li {
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .kind {
+      flex: none;
+      width: 56px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--dk-faint);
+    }
+    .value {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    mark {
+      background: none;
+      color: var(--dk-primary);
+      font-weight: 700;
+    }
+    .count {
+      flex: none;
+      font-size: 12px;
+      color: var(--dk-faint);
+    }
+    li.active,
+    li:hover {
+      background: rgba(0, 229, 255, 0.15);
+      color: var(--dk-primary);
+    }
+  }
+  .lib-table {
+    flex: 1;
+  }
+  // En-tête triable (.dk-sort, thème global) : le bouton remplit sa cellule.
+  .dk-thead .dk-sort.fill {
+    display: block;
+    width: 100%;
+  }
+  .viewport {
+    height: max(360px, calc(100dvh - 380px));
+  }
+  .lib-grid {
+    grid-template-columns:
+      34px 52px 104px minmax(160px, 1.5fr) minmax(110px, 1fr) minmax(110px, 1fr)
+      90px 56px 60px 90px minmax(160px, 1.5fr);
+  }
+  .dk-row {
+    height: 44px;
+    min-height: 44px;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .play {
+    background: none;
+    border: none;
+    color: var(--dk-primary);
+    font-size: 14px;
+    cursor: pointer;
+    height: 40px;
+    width: 44px;
+    &.off {
+      color: var(--dk-faint);
+    }
+  }
+  // Artiste / Album : le nom tronqué, puis ▶ pour écouter le groupe entier.
+  .group-cell {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .group-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .group-play {
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    color: var(--dk-primary);
+    font-size: 11px;
+    cursor: pointer;
+    opacity: 0;
+    &:hover {
+      background: rgba(0, 229, 255, 0.15);
+    }
+    &:focus-visible {
+      opacity: 1;
+    }
+    @media (hover: none) {
+      opacity: 0.7;
+    }
+  }
+  .dk-row:hover .group-play {
+    opacity: 1;
+  }
+  .cloud {
+    font-size: 12px;
+    color: var(--dk-faint);
+    &.ok {
+      color: var(--dk-success);
+    }
+    &.stale {
+      color: var(--dk-primary);
+    }
+  }
+  .title {
+    display: block;
+  }
+  .path {
+    color: var(--dk-faint);
+    font-size: 12px;
+  }
+  .dk-row.dim > span:not(.cloud) {
+    color: var(--dk-faint);
+  }
+  .status {
+    margin: 0;
+  }
+  // Sous 900 px, la hauteur de ligne (56 px) est aussi celle passée à VirtualList.
+  @media (max-width: 899px) {
+    .lib-grid {
+      grid-template-columns: 34px 44px 76px minmax(0, 1fr);
+    }
+    .viewport {
+      height: max(320px, calc(100dvh - 400px));
+    }
+    .dk-row {
+      height: 56px;
+      min-height: 56px;
+      .play {
+        height: 44px;
+      }
+    }
+  }
+}

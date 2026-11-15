@@ -3,7 +3,7 @@
   Construit le paquet de déploiement DeeKeep pour le serveur Linux (ARM64 par défaut).
 
 .DESCRIPTION
-  1. Compile le client Angular en production et le place dans wwwroot de la passerelle.
+  1. Compile le client React en production et le place dans wwwroot de la passerelle.
   2. Publie chaque microservice pour la cible (dépendant du runtime .NET partagé :
      les six processus partagent ainsi les pages du framework en mémoire).
   3. Assemble deploy/out/deekeep-<version>-<rid>.tar.gz avec les unités systemd,
@@ -31,15 +31,15 @@ New-Item -ItemType Directory -Force $stage | Out-Null
 
 $wwwroot = Join-Path $root "src\Gateway\DeeKeep.Gateway\wwwroot"
 if (-not $SkipWeb) {
-    Write-Host "== Client Angular (production)"
+    Write-Host "== Client React (production)"
     Push-Location (Join-Path $root "web")
     try {
         if (-not (Test-Path node_modules)) { npm ci }
-        npx ng build --configuration production
-        if ($LASTEXITCODE -ne 0) { throw "Échec du build Angular" }
+        npm run build
+        if ($LASTEXITCODE -ne 0) { throw "Échec du build du client web" }
     } finally { Pop-Location }
     if (Test-Path $wwwroot) { Remove-Item -Recurse -Force $wwwroot }
-    Copy-Item -Recurse (Join-Path $root "web\dist\web\browser") $wwwroot
+    Copy-Item -Recurse (Join-Path $root "web\dist") $wwwroot
 }
 
 $services = "Gateway", "Catalog", "Library", "Downloader", "Quality", "Storage"

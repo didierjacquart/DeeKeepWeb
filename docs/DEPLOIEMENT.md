@@ -28,7 +28,7 @@ concurrence des tâches).
 ./deploy/publish.ps1
 ```
 
-Produit `deploy/out/deekeep-<version>-linux-arm64.tar.gz` (client Angular
+Produit `deploy/out/deekeep-<version>-linux-arm64.tar.gz` (client React
 compilé, six services publiés en ReadyToRun pour ARM64, unités systemd,
 scripts, modèle de configuration). `-Runtime linux-x64` pour un PC.
 
@@ -63,8 +63,18 @@ configuration ni aux bases.
    section `PathMap` : la base stocke les chemins Windows (`D:\Artiste\…`) ;
    `{ "From": "D:\\", "To": "/srv/musique/" }` les fait correspondre sans
    réécrire la base (l'application desktop peut toujours la rouvrir).
-   Ajuster aussi `Library:BrowseRoots` (dossiers que l'interface peut parcourir)
-   et `Storage:ArchiveRoot` (disque de l'archive, idéalement un autre disque).
+   Ajuster aussi `Library:BrowseRoots` (dossiers que l'interface peut parcourir,
+   par défaut `/srv/musique`, `/mnt` et `/media`) et `Storage:ArchiveRoot`
+   (disque de l'archive, idéalement un autre disque).
+   **Musique sur un autre appareil** (le PC qui affiche le site, le NAS) : le
+   serveur ne peut écrire que sur ses propres disques. Partager le dossier en
+   SMB depuis l'appareil, puis le monter sur le serveur sous `/mnt`, par
+   exemple dans `/etc/fstab` :
+   `//PC-SALON/Musique /mnt/pc-salon cifs credentials=/etc/deekeep/smb-pc,uid=deekeep,gid=deekeep,iocharset=utf8,_netdev,nofail 0 0`
+   (paquet `cifs-utils`). Le dossier apparaît alors dans **Paramètres →
+   Modifier le dossier**. Sur un poste de développement Windows,
+   `Library:BrowseAnywhere: true` ouvre tous les lecteurs (et les chemins UNC
+   saisis à la main).
 4. **Archive** existante : copier `deekeep-archive.db` dans `ArchiveRoot`.
 5. **Données de l'application desktop** (historique, mesures de qualité,
    durées de référence plus récentes que la base) : copier

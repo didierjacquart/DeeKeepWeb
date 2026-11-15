@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "deekeep-dev",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "run-dev.ps1"],
+      "port": 4200
+    }
+  ]
+}

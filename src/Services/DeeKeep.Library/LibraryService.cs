@@ -224,6 +224,21 @@ public static class LibraryService
                 AudioExtensions.ContentType(local), null, info.LastWriteTimeUtc, etag, enableRangeProcessing: true);
         });
 
+        // Jaquette intégrée au fichier : celle qu'écoute le lecteur, marquée de l'icône DeeKeep
+        // quand le titre est passé par l'application (la table covers garde l'originale).
+        app.MapGet("/media/cover", (LibraryPaths paths, HttpContext http, string path) =>
+        {
+            var local = paths.ToLocal(path);
+            if (!AudioExtensions.IsAudioFile(local) || !paths.IsAllowed(local) || !File.Exists(local)) return Results.NotFound();
+            var info = new FileInfo(local);
+            var etag = new EntityTagHeaderValue($"\"c{info.Length:x}-{info.LastWriteTimeUtc.Ticks:x}\"");
+            if (http.Request.Headers.IfNoneMatch.ToString() == etag.Tag.Value) return Results.StatusCode(StatusCodes.Status304NotModified);
+            var cover = AudioTags.Read(local, withProperties: false).Cover;
+            if (cover is null) return Results.NotFound();
+            http.Response.Headers.CacheControl = "private, max-age=3600";
+            return Results.File(cover.Data, cover.Mime is { Length: > 0 } m ? m : "image/jpeg", entityTag: etag);
+        });
+
         // Jaquettes : contenu adressé par SHA-1, donc cache HTTP long et ETag = sha1.
         app.MapGet("/covers/{sha1}", (DeeKeepDb db, HttpContext http, string sha1) =>
         {

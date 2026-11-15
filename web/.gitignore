@@ -3,8 +3,6 @@
 # Compiled output
 /dist
 /tmp
-/out-tsc
-/bazel-out
 
 # Node
 /node_modules
@@ -25,12 +23,10 @@ yarn-error.log
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
-!.vscode/extensions.json
 !.vscode/mcp.json
 .history/*
 
 # Miscellaneous
-/.angular/cache
 .sass-cache/
 /connect.lock
 /coverage

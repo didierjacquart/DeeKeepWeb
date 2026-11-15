@@ -9,7 +9,7 @@ reprises ; la spécification détaillée de chacune est dans `docs/analyse/`.
 | Contrainte | Réponse |
 |---|---|
 | GraphQL | Passerelle **HotChocolate** : un seul schéma (requêtes, mutations, abonnements) pour le client |
-| Angular | SPA Angular (composants autonomes, signaux), **PWA** installable sur mobile et ordinateur |
+| React | SPA React 19 (composants fonctions, hooks, Vite), **PWA** installable sur mobile et ordinateur |
 | Microservices .NET | 5 services métier + 1 passerelle, .NET 10, API minimales internes |
 | Base SQLite existante | `deekeep_cache.db` conservée **telle quelle** : même schéma, même empreinte `h` — l'application desktop peut toujours la rouvrir. Turso n'étant plus utilisé, la synchronisation en ligne n'est pas reprise et `sync_outbox` n'est plus alimentée |
 | Serveur Linux ARM64 peu puissant | systemd natif, pas de conteneurs, pas de courtier de messages, GC poste de travail, limites mémoire, parallélisme borné, publication ReadyToRun |
@@ -20,11 +20,11 @@ reprises ; la spécification détaillée de chacune est dans `docs/analyse/`.
 ## Vue d'ensemble
 
 ```
- Navigateur / mobile (PWA Angular)
+ Navigateur / mobile (PWA React)
    │  HTTPS : /graphql (requêtes, mutations) · WebSocket graphql-ws (abonnements)
-   │          /media/* (flux audio, Range) · /covers/* (jaquettes)
+   │          /media/* (flux audio, Range ; jaquette du fichier) · /covers/* (jaquettes)
    ▼
- Caddy (TLS, compression)  ──►  Gateway :5000  (HotChocolate + YARP + fichiers Angular + auth)
+ Caddy (TLS, compression)  ──►  Gateway :5000  (HotChocolate + YARP + fichiers React + auth)
                                    │  HTTP interne 127.0.0.1 (+ clé X-Internal-Key)
                                    │  SSE /internal/events (événements, reprise Last-Event-ID)
      ┌───────────────┬─────────────┼───────────────┬──────────────────┐
@@ -116,7 +116,7 @@ SQLite est partagée entre processus d'une même machine : WAL,
 - `graphql-ws` : reconnexion exponentielle infinie ; à chaque reconnexion, les
   requêtes actives sont rafraîchies (rattrapage des événements manqués) et les
   tâches en cours resouscrites.
-- Service worker Angular : coquille, jaquettes (cache LRU), **titres épinglés
+- Service worker (Workbox) : coquille, jaquettes (cache LRU), **titres épinglés
   pour l'écoute hors ligne** (Cache Storage).
 - Indicateur permanent (pied de barre latérale / en-tête mobile) : en ligne,
   hors ligne, reconnexion, opérations en attente.
@@ -140,7 +140,7 @@ DeeKeepWeb/
     Services/DeeKeep.Catalog, DeeKeep.Library, DeeKeep.Downloader,
              DeeKeep.Quality, DeeKeep.Storage
   tests/DeeKeep.Tests
-  web/                      application Angular
+  web/                      application React
   deploy/                   systemd, Caddyfile, scripts d'installation ARM64
   docs/
 ```

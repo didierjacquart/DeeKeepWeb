@@ -38,7 +38,9 @@ public sealed class PathMap(IOptions<PathMapOptions> options)
         {
             if (StartsWithPrefix(dbPath, m.From))
             {
-                var rest = dbPath[m.From.Length..].Replace('\\', '/').TrimStart('/');
+                // Séparateur natif : « E:\2002\x.mp3 » sous Windows, pas « E:\2002/x.mp3 »
+                // (les caches indexés par chemin doivent voir la même chaîne que le disque).
+                var rest = dbPath[m.From.Length..].Replace('\\', '/').TrimStart('/').Replace('/', Path.DirectorySeparatorChar);
                 return Path.Combine(m.To, rest);
             }
         }

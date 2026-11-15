@@ -1,0 +1,27 @@
+.dk-app-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  .icon {
+    width: 36px;
+    height: 36px;
+    flex: none;
+  }
+  .text {
+    display: flex;
+    flex-direction: column;
+  }
+  .title {
+    font-family: var(--dk-font-title);
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--dk-primary);
+    line-height: 1.1;
+  }
+  .tagline {
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--dk-muted);
+    white-space: nowrap;
+  }
+}

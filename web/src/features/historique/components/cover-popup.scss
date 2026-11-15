@@ -1,0 +1,11 @@
+.dk-cover-popup {
+  .popup {
+    text-align: center;
+    img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 10px;
+      object-fit: cover;
+    }
+  }
+}

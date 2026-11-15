@@ -1,0 +1,124 @@
+// Tableaux de la fenêtre de recherche : pistes et entités.
+.dk-search-dialog {
+  .sd-body {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sd-table {
+    flex: 1 1 0;
+    min-height: 160px;
+  }
+  .sd-viewport {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+  }
+  .sd-row-h {
+    height: 64px;
+    box-sizing: border-box;
+  }
+
+  .sd-grid {
+    grid-template-columns: 64px 56px minmax(0, 1fr) 170px 170px 64px 100px 60px;
+  }
+  .sd-ent-grid {
+    grid-template-columns: 56px minmax(0, 1fr) 220px 180px;
+  }
+  .sd-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sd-center {
+    text-align: center;
+    display: flex;
+    justify-content: center;
+  }
+  .sd-strong {
+    font-weight: 600;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sd-title-cell {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .sd-explicit {
+    margin-left: 6px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+  // Bouton d'exploration présenté comme un lien dans le texte de la cellule.
+  .sd-link-a {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    text-align: inherit;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
+    color: var(--dk-primary);
+    cursor: pointer;
+    text-decoration: none;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  .sd-gauge {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    i {
+      width: 4px;
+      height: 16px;
+      border-radius: 2px;
+      background: var(--dk-gauge-off);
+      &.on {
+        background: var(--dk-primary);
+      }
+    }
+  }
+  .sd-play {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: rgba(0, 229, 255, 0.15);
+    color: var(--dk-primary);
+    font-size: 13px;
+    &:hover:not(:disabled),
+    &.active {
+      background: var(--dk-primary);
+      color: var(--dk-on-primary);
+    }
+    &:disabled {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--dk-disabled);
+      cursor: default;
+    }
+  }
+
+  @media (max-width: 899px) {
+    .sd-grid {
+      grid-template-columns: 70px minmax(0, 1fr) 52px;
+    }
+    .sd-ent-grid {
+      grid-template-columns: 56px minmax(0, 1fr) auto;
+    }
+    .sd-play {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}
