@@ -9,7 +9,8 @@ public sealed record TrackUser(string Id, string Name, double AddedAt, string? O
 public sealed record UserTracksRequest(string UserId, IReadOnlyList<string> Paths, string Origin = "manual");
 
 /// <summary>Nombre de titres par utilisateur (filtre de la Bibliothèque, page Administration).</summary>
-public sealed record UserTrackCount(string Id, string Name, int Tracks);
+/// <remarks><c>long</c> : SQLite rend COUNT(*) en entier 64 bits, et Dapper ne convertit pas pour un constructeur de record.</remarks>
+public sealed record UserTrackCount(string Id, string Name, long Tracks);
 
 /// <summary>
 /// Bibliothèques personnelles : chaque utilisateur a ses titres, un même fichier pouvant être

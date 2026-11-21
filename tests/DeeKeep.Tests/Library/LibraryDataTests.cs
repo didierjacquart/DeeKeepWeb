@@ -219,6 +219,18 @@ public class LibraryDataTests : IDisposable
     }
 
     [Fact]
+    public void Counts_gives_the_number_of_titles_of_each_account()
+    {
+        CreateAccounts(("adm", "Didier", "admin"), ("a", "Alice", "user"));
+        var (_, _, users) = Registrar();
+        users.Link("a", ["Queen\\Yeah - Queen.mp3", "Queen\\Other - Queen.mp3"], "manual");
+
+        var counts = users.Counts();
+
+        Assert.Equal([("Alice", 2L), ("Didier", 0L)], counts.Select(c => (c.Name, c.Tracks)));
+    }
+
+    [Fact]
     public async Task A_shared_title_is_only_unlinked_until_its_last_user_deletes_it()
     {
         if (SampleMp3 is not { } sample) return;

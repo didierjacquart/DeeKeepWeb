@@ -22,8 +22,13 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
             archive = LoadArchive(conn);
         }
         var root = LibraryRoot();
-        Parallel.ForEach(entries, new ParallelOptions { MaxDegreeOfParallelism = 4 }, e => Enrich(e, root));
-        foreach (var e in entries) e.Archive = archive.GetValueOrDefault(e.Path);
+        foreach (var e in entries) e.LocalPath = paths.ToLocal(e.Path);
+        var states = disk.GetMany(entries.Select(e => e.LocalPath).ToList());
+        foreach (var e in entries)
+        {
+            Apply(e, states[e.LocalPath], root);
+            e.Archive = archive.GetValueOrDefault(e.Path);
+        }
 
         var unknownBitrate = entries.Where(e => e.Exists && (e.Bitrate ?? 0) == 0).Select(e => e.Path).ToList();
         if (unknownBitrate.Count > 0) backfill.Enqueue(unknownBitrate);
@@ -88,7 +93,11 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
     private void Enrich(LibraryEntry entry, string? root)
     {
         entry.LocalPath = paths.ToLocal(entry.Path);
-        var state = disk.Get(entry.LocalPath);
+        Apply(entry, disk.Get(entry.LocalPath), root);
+    }
+
+    private static void Apply(LibraryEntry entry, DiskState state, string? root)
+    {
         entry.Exists = state.Exists && root is not null && IsInside(entry.LocalPath, root);
         entry.Stamp = state.ArchiveStamp;
         // La taille du disque fait foi, comme dans l'original.

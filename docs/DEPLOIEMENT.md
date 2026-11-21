@@ -155,10 +155,12 @@ configuration ni aux bases.
   (installations antérieures). Un compte sans la page Paramètres se
   déconnecte depuis la barre latérale ; son mot de passe se change par un
   administrateur.
-- Mot de passe administrateur perdu : arrêter la passerelle et, avec
-  `sqlite3`, rendre administrateur un autre compte connu
-  (`UPDATE users SET role='admin', disabled=0 WHERE name='…'`), ou supprimer
-  tous les comptes (`DELETE FROM users`) pour revenir à l'écran de premier accès.
+- Mot de passe perdu : `sudo sh /opt/deekeep/bin/deekeep-reset-password.sh [nom]`
+  (`deekeep` par défaut) demande le nouveau mot de passe au clavier et réactive
+  le compte ; la passerelle est arrêtée quelques secondes. Le compte garde son
+  identifiant, donc sa bibliothèque personnelle. Ne **pas** supprimer les
+  comptes (`DELETE FROM users`) pour revenir à l'écran de premier accès : le
+  nouveau compte aurait un autre identifiant et ne retrouverait aucun de ses titres.
 
 ## Bibliothèques personnelles
 

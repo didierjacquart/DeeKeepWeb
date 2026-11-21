@@ -190,12 +190,20 @@ public sealed class DatabaseHealthCheck(IOptions<DatabaseOptions> options) : IHe
     }
 }
 
-/// <summary>Ajoute l'en-tête de clé interne aux appels entre services.</summary>
+/// <summary>
+/// Pose l'en-tête de clé interne sur les appels entre services. Il est remplacé, pas ajouté :
+/// les réessais de la résilience repassent la même requête ici, et une clé doublée
+/// (« k, k ») serait refusée par le service appelé (401).
+/// </summary>
 public sealed class InternalKeyHandler(InternalKey key) : DelegatingHandler
 {
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (!string.IsNullOrEmpty(key.Value)) request.Headers.TryAddWithoutValidation(ServiceDefaults.InternalKeyHeader, key.Value);
+        if (!string.IsNullOrEmpty(key.Value))
+        {
+            request.Headers.Remove(ServiceDefaults.InternalKeyHeader);
+            request.Headers.TryAddWithoutValidation(ServiceDefaults.InternalKeyHeader, key.Value);
+        }
         return base.SendAsync(request, cancellationToken);
     }
 }
