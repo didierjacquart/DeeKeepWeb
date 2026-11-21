@@ -3,7 +3,7 @@ import { useEffect, useEffectEvent } from 'react';
 /**
  * Abonnement à un observable rxjs pendant la vie du composant ; rouvert quand
  * l'observable change (le mémoriser avec useMemo). `null` = pas d'abonnement.
- * Les erreurs sont ignorées (ex. abonnement GraphQL coupé : la page se recale à la reconnexion).
+ * Les erreurs sont ignorées (ex. flux d'événements coupé : la page se recale à la reconnexion).
  *
  * @template T
  * @param {import('rxjs').Observable<T> | null | undefined} source

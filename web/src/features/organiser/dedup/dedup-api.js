@@ -1,17 +1,9 @@
-import { gql } from '@apollo/client';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
+import { endpoint } from '../../../core/api/endpoints';
 import { DELETE_FILES } from '../organiser.queries';
 
 /** Suppression hors session d'analyse (« Dédoublonner… » de la recherche). */
-const DELETE = gql`
-  mutation DeleteOrganizeFiles($paths: [String!]!) {
-    deleteOrganizeFiles(paths: $paths) {
-      deleted
-      failed
-      errors
-    }
-  }
-`;
+const DELETE = endpoint('DeleteOrganizeFiles', 'deleteOrganizeFiles', 'POST /api/organize/delete-files');
 
 /** Supprime (corbeille de la bibliothèque) des fichiers d'une session d'analyse. */
 export const deleteSessionFiles = (paths, sessionId) =>

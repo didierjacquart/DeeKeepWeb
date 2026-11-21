@@ -7,9 +7,6 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Systemd" Version="10.0.14" />
-    <PackageVersion Include="HotChocolate.AspNetCore" Version="16.7.1" />
-    <PackageVersion Include="HotChocolate.Types.Analyzers" Version="16.7.1" />
-    <PackageVersion Include="HotChocolate.Data" Version="16.7.1" />
     <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
     <PackageVersion Include="TagLibSharp" Version="2.3.0" />
     <PackageVersion Include="SkiaSharp" Version="4.153.1" />

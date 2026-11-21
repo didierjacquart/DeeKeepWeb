@@ -7,7 +7,7 @@ using Yarp.ReverseProxy.Transforms;
 namespace DeeKeep.Gateway.Infrastructure;
 
 /// <summary>
-/// Flux binaires servis directement par les services, sans passer par GraphQL :
+/// Flux binaires servis directement par les services, sans passer par l'API JSON :
 /// audio (requêtes Range), jaquettes, images et extraits Deezer mis en cache,
 /// titres lus depuis l'archive.
 /// </summary>

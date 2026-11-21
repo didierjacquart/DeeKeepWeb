@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { imageUrl } from '../../../shared/urls';
 import { SEARCH_COVER } from '../history-api';
 

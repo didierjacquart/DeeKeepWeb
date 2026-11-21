@@ -34,7 +34,8 @@ public sealed record TrackDto(
     long? ArchiveSourceBytes = null,
     int? ArchiveBitrate = null,
     string? HistoryCoverSha1 = null,
-    string? LocalPath = null);
+    string? LocalPath = null,
+    IReadOnlyList<string>? Users = null);
 
 public static class ArchiveStates
 {
@@ -51,7 +52,9 @@ public sealed record TrackQuery(
     string? SortBy = null,
     bool Descending = false,
     int Offset = 0,
-    int Limit = 500);
+    int Limit = 500,
+    string? UserId = null,
+    bool IncludeUsers = false);
 
 public sealed record TrackPage(IReadOnlyList<TrackDto> Items, int Total, int TotalOnDisk, int TotalMissing);
 
@@ -106,14 +109,22 @@ public sealed record RegisterFileRequest(
     string? ReplacedLocalPath = null,
     long? DeezerId = null,
     string? CoverUrl = null,
-    string? HistoryCoverBase64 = null);
+    string? HistoryCoverBase64 = null,
+    string? UserId = null);
 
 /// <summary>Événement <see cref="EventTypes.PresenceChanged"/> : l'index de présence a changé (construit, complété, réduit).</summary>
 public sealed record PresenceChangedEvent(bool Ready, int Files, long Version, string Reason);
 
-public sealed record DeleteFilesRequest(IReadOnlyList<string> Paths, string Reason, bool ToTrash = true);
+/// <summary>
+/// Suppression de fichiers. Avec <see cref="UserId"/> (action d'un utilisateur, raison « user ») : le
+/// lien de cet utilisateur au titre est rompu, et le fichier ne part à la corbeille que si plus
+/// personne ne l'utilise.
+/// </summary>
+public sealed record DeleteFilesRequest(IReadOnlyList<string> Paths, string Reason, bool ToTrash = true, string? UserId = null, bool IsAdmin = false);
 
-public sealed record DeleteFilesResult(IReadOnlyList<string> Deleted, IReadOnlyList<string> Failed, IReadOnlyList<string> Errors);
+/// <summary><see cref="Unlinked"/> : titres retirés de la bibliothèque de l'utilisateur seulement (encore utilisés par d'autres).</summary>
+public sealed record DeleteFilesResult(IReadOnlyList<string> Deleted, IReadOnlyList<string> Failed, IReadOnlyList<string> Errors,
+    IReadOnlyList<string>? Unlinked = null);
 
 public sealed record HistoryEntry(
     string Path,

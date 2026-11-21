@@ -1,11 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
-import { api } from '../../core/graphql/api';
+import { useSearchParams } from 'react-router';
+import { api } from '../../core/api/api';
+import { usePermissions } from '../../core/auth/usePermissions';
 import { ArchivePanel } from './archive-panel/ArchivePanel';
 import { LibraryActions } from './components/LibraryActions';
 import { LibraryHeader } from './components/LibraryHeader';
 import { LibraryList } from './components/LibraryList';
 import { LibrarySearch } from './components/LibrarySearch';
 import { TrackMenu } from './components/TrackMenu';
+import { UserFilter } from './components/UserFilter';
+import { openTrackUsersDialog } from './components/open-track-users-dialog';
 import { useCheckedPaths } from './hooks/useCheckedPaths';
 import { useLibrarySearch } from './hooks/useLibrarySearch';
 import { useLibraryTracks } from './hooks/useLibraryTracks';
@@ -13,6 +17,8 @@ import { albumTracks, artistTracks, countLabel, groupLabel, groupOfSuggestion } 
 import { filterRows, nextSort, sortRows } from './library-model';
 import { statusLine } from './library-status';
 import { playGroup, playTrack } from './track-actions';
+import { deleteTracks } from './trash/delete-actions';
+import { openTrashDialog } from './trash/open-trash-dialog';
 import './library-page.scss';
 
 /** Bouton d'écoute de l'artiste ou de l'album choisi dans les propositions de la recherche. */
@@ -34,10 +40,15 @@ function GroupPlay({ group }) {
  * (tous les mots, ordre libre), cinq propositions au clavier, tri par en-tête, écoute (la liste
  * affichée devient la file ; un album ou un artiste entier depuis le menu d'un titre ou une
  * proposition de la recherche). La fenêtre du lecteur s'ouvre à chaque écoute lancée d'ici.
- * La liste vient du cache Apollo : elle s'affiche hors ligne.
+ * La liste vient du cache local : elle s'affiche hors ligne. Chacun voit ses titres ; l'administrateur
+ * voit tout, ou les titres d'un utilisateur (`?utilisateur=<id>`), et qui utilise chaque titre.
  */
 export function LibraryPage() {
-  const { page, rows, loading, stale, error } = useLibraryTracks();
+  const { canDelete, admin } = usePermissions();
+  const [params, setParams] = useSearchParams();
+  const userFilter = admin ? params.get('utilisateur') : null;
+  const setUserFilter = id => setParams(id ? { utilisateur: id } : {}, { replace: true });
+  const { page, rows, loading, stale, error } = useLibraryTracks(userFilter);
   const [includeMissing, setIncludeMissing] = useState(false);
   const [sort, setSort] = useState({ column: 'artist', desc: false });
   const [archiveOpen, setArchiveOpen] = useState(false);
@@ -54,6 +65,10 @@ export function LibraryPage() {
   const { checked, toggle, checkAll, uncheckAll } = useCheckedPaths(page, visiblePaths);
   const selectedPaths = useMemo(() => visiblePaths.filter(p => checked.has(p)), [visiblePaths, checked]);
   const summary = useMemo(() => statusLine(rows, displayed.length), [rows, displayed]);
+  const deleteSelected = async () => {
+    const byPath = new Map(rows.map(r => [r.track.path, r.track]));
+    if (await deleteTracks(selectedPaths.map(p => byPath.get(p)).filter(Boolean))) uncheckAll();
+  };
 
   const play = t => playTrack(t, displayed);
   const playGroupOf = (kind, t) =>
@@ -78,8 +93,12 @@ export function LibraryPage() {
         archiveOpen={archiveOpen}
         onToggleArchive={() => setArchiveOpen(!archiveOpen)}
         onRefresh={() => api.refetchActive()}
+        selectedCount={selectedPaths.length}
+        onDeleteSelected={canDelete ? () => void deleteSelected() : undefined}
+        onOpenTrash={canDelete ? () => void openTrashDialog() : undefined}
       />
 
+      {admin && <UserFilter value={userFilter} onChange={setUserFilter} />}
       <LibrarySearch search={search} />
       <GroupPlay group={group} />
 
@@ -108,7 +127,14 @@ export function LibraryPage() {
         {summary}
       </p>
 
-      <TrackMenu menu={menu} tracks={tracks} onClose={closeMenu} onPlay={play} />
+      <TrackMenu
+        menu={menu}
+        tracks={tracks}
+        onClose={closeMenu}
+        onPlay={play}
+        canDelete={canDelete}
+        onShowUsers={admin ? t => void openTrackUsersDialog(t) : undefined}
+      />
     </section>
   );
 }

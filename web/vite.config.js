@@ -5,7 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 const gateway = 'http://127.0.0.1:5000';
 
 /** Routes servies par la passerelle : jamais la coquille de l'application. */
-const serverPaths = ['/graphql', '/auth', '/media', '/archive-media', '/covers', '/img', '/preview'];
+const serverPaths = ['/api', '/auth', '/media', '/archive-media', '/covers', '/img', '/preview'];
 
 export default defineConfig({
   plugins: [
@@ -18,7 +18,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,webmanifest}'],
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/(graphql|auth|media|archive-media|preview)(\/|$|\?)/, /\/[^/?]+\.[^/]+$/],
+        navigateFallbackDenylist: [/^\/(api|auth|media|archive-media|preview)(\/|$|\?)/, /\/[^/?]+\.[^/]+$/],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
           {
@@ -48,9 +48,7 @@ export default defineConfig({
   ],
   server: {
     port: 4200,
-    proxy: Object.fromEntries(
-      serverPaths.map(path => [path, { target: gateway, ws: path === '/graphql', changeOrigin: false }]),
-    ),
+    proxy: Object.fromEntries(serverPaths.map(path => [path, { target: gateway, changeOrigin: false }])),
   },
   test: {
     environment: 'jsdom',

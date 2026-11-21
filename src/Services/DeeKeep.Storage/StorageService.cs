@@ -6,6 +6,7 @@ using DeeKeep.Contracts;
 using DeeKeep.Contracts.Storage;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using DeeKeep.Storage.UsbSync;
 
 namespace DeeKeep.Storage;
 
@@ -26,11 +27,13 @@ public static class StorageService
         services.AddJobHandler<ArchiveRestoreHandler>(StorageJobTypes.Restore);
         services.AddJobHandler<ArchiveCheckHandler>(StorageJobTypes.Check);
         services.AddJobHandler<ArchiveUsageHandler>(StorageJobTypes.Usage);
+        services.AddUsbSync(configuration);
         return services;
     }
 
     public static WebApplication MapStorageService(this WebApplication app)
     {
+        app.MapUsbSync();
         var api = app.MapGroup("/api/archive");
 
         api.MapGet("/config", (ArchiveSettings settings) => settings.Get());

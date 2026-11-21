@@ -1,4 +1,5 @@
 import { Fragment, useState } from 'react';
+import { usePermissions } from '../../../core/auth/usePermissions';
 import { notify } from '../../../core/ui/notify';
 import { confirm } from '../../../shared/dialog/confirm';
 import { DialogActions, DialogContent, DialogTitle } from '../../../shared/dialog/DialogParts';
@@ -16,6 +17,7 @@ import './file-dedup-dialog.scss';
 export function FileDedupDialog({ result: data, sessionId, close }) {
   const [checked, setChecked] = useState(() => defaultChecked(data));
   const [busy, setBusy] = useState(false);
+  const { canDelete } = usePermissions();
 
   const toggle = path => setChecked(s => toggled(s, path));
   const setAll = on => setChecked(on ? allPaths(data) : new Set());
@@ -93,7 +95,12 @@ export function FileDedupDialog({ result: data, sessionId, close }) {
         <button className="control-btn" onClick={() => close(undefined)} disabled={busy}>
           Annuler
         </button>
-        <button className="danger-btn" onClick={() => void remove()} disabled={busy || checked.size === 0}>
+        <button
+          className="danger-btn"
+          onClick={() => void remove()}
+          disabled={busy || checked.size === 0 || !canDelete}
+          data-tip={canDelete ? undefined : "Vous n'avez pas le droit de supprimer"}
+        >
           Supprimer les fichiers cochés
         </button>
       </DialogActions>

@@ -37,3 +37,10 @@ export function asPlayerTrack(t) {
     context: [t.format, t.year, t.genre].filter(Boolean).join(' · ') || null,
   };
 }
+
+/** Infobulle du titre ; pour l'administrateur, ses utilisateurs (bibliothèques personnelles). */
+export function titleTip(t) {
+  if (!Array.isArray(t.users)) return t.title || undefined;
+  const who = t.users.length ? t.users.join(', ') : 'aucun utilisateur';
+  return `${t.title || ''}\nUtilisateurs : ${who}`.trim();
+}

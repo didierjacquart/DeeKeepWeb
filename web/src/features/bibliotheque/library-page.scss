@@ -208,3 +208,17 @@
     }
   }
 }
+
+.lib-user-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.track-users {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}

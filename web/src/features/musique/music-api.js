@@ -1,70 +1,18 @@
-import { gql } from '@apollo/client';
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
+import { endpoint, serverEvent } from '../../core/api/endpoints';
 
-/** Piste Deezer d'une ligne (charge utile de la tâche « download » ou ligne en attente). */
-const TRACK_FIELDS =
-  'id title artist artistId album albumId duration previewUrl coverSmall coverBig link trackPosition diskNumber';
-const JOB_FIELDS = `id service type title status progress done failed total message error attempts groupKey payload result createdAt updatedAt startedAt finishedAt`;
-
-const JOBS_Q = gql`query DownloadJobs { downloadJobs(type: "download") { ${JOB_FIELDS} } }`;
-const PENDING_Q = gql`query PendingDownloads { pendingDownloads { id addedAt track { ${TRACK_FIELDS} } } }`;
-const PRESENCE_Q = gql`
-  query Presence($items: [PresenceQueryInput!]!) {
-    presence(items: $items) {
-      key
-      state
-      reason
-      files {
-        path
-        reason
-      }
-    }
-  }
-`;
-const ADD_PENDING = gql`
-  mutation AddPending($tracks: [DownloadTrackInput!]!) {
-    addPendingDownloads(tracks: $tracks) {
-      id
-    }
-  }
-`;
-const REMOVE_PENDING = gql`
-  mutation RemovePending($ids: [UUID!]!) {
-    removePendingDownloads(ids: $ids)
-  }
-`;
-const ENQUEUE = gql`
-  mutation Enqueue($tracks: [DownloadTrackInput!]!, $batchId: String, $pendingIds: [UUID!]) {
-    enqueueDownloads(tracks: $tracks, batchId: $batchId, pendingIds: $pendingIds) {
-      id
-    }
-  }
-`;
-const RETRY = gql`
-  mutation RetryDownloads($ids: [UUID!]!) {
-    retryDownloadJobs(ids: $ids) {
-      id
-    }
-  }
-`;
-const REMOVE_JOBS = gql`
-  mutation RemoveJobs($ids: [UUID!]!) {
-    removeDownloadJobs(ids: $ids)
-  }
-`;
-const PURGE = gql`
-  mutation Purge {
-    purgeDownloads(type: "download", succeededOnly: true)
-  }
-`;
-const QUEUE_CHANGED = gql`
-  subscription DownloadQueueChanged {
-    downloadQueueChanged {
-      removedJobIds
-      pendingChanged
-    }
-  }
-`;
+const JOBS_Q = endpoint('DownloadJobs', 'downloadJobs', 'GET /api/downloads/jobs?type=download');
+const PENDING_Q = endpoint('PendingDownloads', 'pendingDownloads', 'GET /api/downloads/pending');
+const PRESENCE_Q = endpoint('Presence', 'presence', 'POST /api/library/presence', { body: v => v.items });
+const ADD_PENDING = endpoint('AddPending', 'addPendingDownloads', 'POST /api/downloads/pending');
+const REMOVE_PENDING = endpoint('RemovePending', 'removePendingDownloads', 'POST /api/downloads/pending/remove');
+const ENQUEUE = endpoint('Enqueue', 'enqueueDownloads', 'POST /api/downloads/jobs');
+const RETRY = endpoint('RetryDownloads', 'retryDownloadJobs', 'POST /api/downloads/jobs/retry');
+const REMOVE_JOBS = endpoint('RemoveJobs', 'removeDownloadJobs', 'POST /api/downloads/jobs/remove');
+const PURGE = endpoint('Purge', 'purgeDownloads', 'POST /api/downloads/jobs/purge', {
+  body: () => ({ type: 'download', succeededOnly: true }),
+});
+const QUEUE_CHANGED = serverEvent('DownloadQueueChanged', 'downloadQueueChanged', 'downloads.changed');
 
 /** La file telle que le serveur la connaît : tâches « download » et lignes en attente. */
 export async function fetchQueue() {

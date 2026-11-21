@@ -4,7 +4,7 @@ import { ConnectivityService, linkState } from './connectivity';
 describe('linkState', () => {
   const base = { browserOnline: true, socketConnected: false, reconnectCount: 0 };
 
-  it('se dit en ligne quand la WebSocket répond', () => {
+  it('se dit en ligne quand le flux d’événements est ouvert', () => {
     expect(linkState({ ...base, socketConnected: true })).toBe('online');
   });
 
@@ -13,7 +13,7 @@ describe('linkState', () => {
     expect(linkState({ ...base, reconnectCount: 3 })).toBe('offline');
   });
 
-  it('est hors ligne quand le navigateur l’est, quoi que dise la WebSocket', () => {
+  it('est hors ligne quand le navigateur l’est, quoi que dise le flux d’événements', () => {
     expect(linkState({ ...base, browserOnline: false, socketConnected: true })).toBe('offline');
   });
 });

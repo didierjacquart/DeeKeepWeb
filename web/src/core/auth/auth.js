@@ -1,8 +1,9 @@
 import { redirect } from 'react-router';
 import { Store } from '../../lib/store';
+import { canSeePage, firstAllowedPath } from './permissions';
 
 /**
- * Session de l'utilisateur unique. Hors ligne, la dernière session connue est
+ * Session du compte connecté (nom, rôle, pages ouvertes, droits d'action). Hors ligne, la dernière session connue est
  * présumée valide : l'application s'ouvre sur son cache plutôt que sur un
  * écran de connexion qui ne pourrait de toute façon rien vérifier.
  */
@@ -25,7 +26,7 @@ export class AuthService extends Store {
       const cached = localStorage.getItem(this.storageKey);
       const state = cached
         ? JSON.parse(cached)
-        : { authEnabled: true, authenticated: false, user: null, needsSetup: false };
+        : { authEnabled: true, authenticated: false, user: null, needsSetup: false, pages: [] };
       this.setState({ session: state });
       return state;
     }
@@ -61,7 +62,7 @@ export class AuthService extends Store {
         await this.refresh();
         return null;
       }
-      if (response.status === 401) return 'Mot de passe incorrect.';
+      if (response.status === 401) return "Nom d'utilisateur ou mot de passe incorrect.";
       const text = await response.text();
       return text.replace(/^"|"$/g, '') || `Erreur ${response.status}`;
     } catch {
@@ -77,4 +78,24 @@ export async function requireSession() {
   const state = auth.state.session ?? (await auth.refresh());
   if (!state.authEnabled || state.authenticated) return null;
   throw redirect(state.needsSetup ? '/setup' : '/login');
+}
+
+/**
+ * Garde d'une page : une adresse que le compte ne peut pas ouvrir renvoie vers sa
+ * première page permise. Sans session, laisse `requireSession` (route parente) agir.
+ * @param {string} key nom de la page (`organiser`, `administration`…)
+ */
+export function requirePage(key) {
+  return async () => {
+    const state = auth.state.session ?? (await auth.refresh());
+    if (state.authEnabled && !state.authenticated) return null;
+    if (!canSeePage(state, key)) throw redirect(firstAllowedPath(state));
+    return null;
+  };
+}
+
+/** Accueil : la première page ouverte au compte. */
+export async function redirectHome() {
+  const state = auth.state.session ?? (await auth.refresh());
+  return redirect(firstAllowedPath(state));
 }

@@ -1,4 +1,6 @@
-/** @typedef {{ path: string, label: string, icon: string }} NavItem */
+import { canSeePage } from '../../core/auth/permissions';
+
+/** @typedef {{ path: string, label: string, icon: string }} NavItem L'adresse sans « / » est la clé de droits de la page. */
 
 /** @type {NavItem[]} */
 export const MAIN_NAV = [
@@ -18,7 +20,13 @@ export const TOOLS_NAV = [
 export const BOTTOM_NAV = [
   { path: '/historique', label: 'Historique', icon: '↺' },
   { path: '/parametres', label: 'Paramètres', icon: '⚙' },
+  { path: '/administration', label: 'Administration', icon: '⚿' },
 ];
+
+/** Entrées que le compte peut ouvrir (session absente : toutes). */
+export function visibleNav(items, session) {
+  return items.filter(i => canSeePage(session, i.path.slice(1)));
+}
 
 /** Titre de la page affichée (en-tête mobile). */
 export function pageTitle(pathname) {

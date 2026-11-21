@@ -3,19 +3,24 @@ import { useLocation, useNavigate } from 'react-router';
 import { auth } from '../../core/auth/auth';
 import { AppLogo } from '../../layout/AppLogo';
 
-/** Connexion, ou définition du mot de passe à la toute première visite (route /setup). */
+/**
+ * Connexion, ou création du premier compte (administrateur) à la toute première
+ * visite (route /setup). Nom laissé vide : compte « deekeep » (installations
+ * antérieures aux comptes multiples).
+ */
 export function LoginPage() {
   const navigate = useNavigate();
   const setup = useLocation().pathname === '/setup';
-  const passwordInput = useRef(null);
+  const nameInput = useRef(null);
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  // Seul champ utile de la page : le curseur y est placé d'emblée.
+  // Premier champ de la page : le curseur y est placé d'emblée.
   useEffect(() => {
-    passwordInput.current?.focus();
+    nameInput.current?.focus();
   }, []);
 
   const submit = async e => {
@@ -26,7 +31,8 @@ export function LoginPage() {
       return;
     }
     setBusy(true);
-    const failure = setup ? await auth.setup(password) : await auth.login(password);
+    const user = name.trim() || undefined;
+    const failure = setup ? await auth.setup(password, user) : await auth.login(password, user);
     setBusy(false);
     if (failure) setError(failure);
     else navigate('/');
@@ -38,11 +44,23 @@ export function LoginPage() {
         <AppLogo />
         {setup && (
           <p className="dk-help">
-            Première visite : choisissez le mot de passe qui protégera DeeKeep (8 caractères au moins).
+            Première visite : créez le compte administrateur qui protégera DeeKeep (mot de passe de 8 caractères au
+            moins).
           </p>
         )}
         <input
-          ref={passwordInput}
+          ref={nameInput}
+          className="dk-input"
+          type="text"
+          name="username"
+          autoComplete="username"
+          autoCapitalize="none"
+          placeholder="Nom d'utilisateur (deekeep par défaut)"
+          aria-label="Nom d'utilisateur"
+          value={name}
+          onChange={e => setName(e.target.value)}
+        />
+        <input
           className="dk-input"
           type="password"
           name="password"

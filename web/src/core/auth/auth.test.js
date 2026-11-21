@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AuthService, auth, requireSession } from './auth';
+import { AuthService, auth, redirectHome, requirePage, requireSession } from './auth';
 
 const session = (fields = {}) => ({ authEnabled: true, authenticated: true, user: null, needsSetup: false, ...fields });
 const reply = (status, body) => Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -43,7 +43,7 @@ describe('AuthService', () => {
       'fetch',
       vi.fn(() => reply(401, {})),
     );
-    await expect(service.login('faux')).resolves.toBe('Mot de passe incorrect.');
+    await expect(service.login('faux')).resolves.toBe("Nom d'utilisateur ou mot de passe incorrect.");
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response('"Trop court"', { status: 400 }))),
@@ -83,5 +83,36 @@ describe('requireSession', () => {
     auth.setState({ session: session({ authenticated: false, needsSetup: true }) });
     const toSetup = await requireSession().catch(r => r);
     expect(toSetup.headers.get('Location')).toBe('/setup');
+  });
+});
+
+describe('requirePage', () => {
+  const limited = session({ role: 'user', pages: ['bibliotheque', 'qualite'], canDownload: false, canDelete: false });
+
+  it('laisse passer une page ouverte au compte', async () => {
+    auth.setState({ session: limited });
+    await expect(requirePage('qualite')()).resolves.toBeNull();
+  });
+
+  it('renvoie une page refusée vers la première page permise', async () => {
+    auth.setState({ session: limited });
+    const r = await requirePage('organiser')().catch(x => x);
+    expect(r.headers.get('Location')).toBe('/bibliotheque');
+    const admin = await requirePage('administration')().catch(x => x);
+    expect(admin.headers.get('Location')).toBe('/bibliotheque');
+  });
+
+  it('sans aucune page, renvoie vers la page d’accès refusé', async () => {
+    auth.setState({ session: session({ role: 'user', pages: [] }) });
+    const r = await requirePage('musique')().catch(x => x);
+    expect(r.headers.get('Location')).toBe('/aucun-acces');
+  });
+
+  it('ouvre tout à un administrateur et choisit l’accueil', async () => {
+    auth.setState({ session: session({ role: 'admin', pages: [] }) });
+    await expect(requirePage('administration')()).resolves.toBeNull();
+    expect((await redirectHome()).headers.get('Location')).toBe('/musique');
+    auth.setState({ session: limited });
+    expect((await redirectHome()).headers.get('Location')).toBe('/bibliotheque');
   });
 });

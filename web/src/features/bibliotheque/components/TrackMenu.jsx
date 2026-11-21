@@ -8,6 +8,7 @@ import { archiveActions } from '../archive-panel/archive-actions';
 import { albumOwner, albumTracks, artistTracks, countLabel, groupLabel } from '../listen-groups';
 import { copyPath, playGroup, removeFromArchive, togglePin } from '../track-actions';
 import { playable } from '../track-info';
+import { deleteTracks } from '../trash/delete-actions';
 
 /** Album et artiste du titre, avec leurs titres écoutables (calculés à l'ouverture du menu). */
 function useGroups(tracks, t) {
@@ -33,11 +34,11 @@ function GroupItem({ kind, group }) {
 
 /**
  * Menu contextuel d'un titre : écoute (du titre, de son album, de son artiste), épinglage
- * hors ligne, archive, chemin.
+ * hors ligne, archive, chemin, suppression (si `canDelete`).
  * @param {{ menu: { x: number, y: number, track: object } | null, tracks: object[], onClose: () => void,
- *   onPlay: (t: object) => void }} props
+ *   onPlay: (t: object) => void, canDelete?: boolean, onShowUsers?: (t: object) => void }} props
  */
-export function TrackMenu({ menu, tracks, onClose, onPlay }) {
+export function TrackMenu({ menu, tracks, onClose, onPlay, canDelete = true, onShowUsers }) {
   const pinned = useStore(offlineAudio, s => s.pinned);
   const t = menu?.track;
   const groups = useGroups(tracks, t);
@@ -64,10 +65,18 @@ export function TrackMenu({ menu, tracks, onClose, onPlay }) {
           >
             Restaurer ce titre depuis l'archive
           </MenuItem>
-          <MenuItem disabled={t.archiveState === 'none'} onClick={() => void removeFromArchive(t)}>
-            Retirer de l'archive
-          </MenuItem>
+          {canDelete && (
+            <MenuItem disabled={t.archiveState === 'none'} onClick={() => void removeFromArchive(t)}>
+              Retirer de l'archive
+            </MenuItem>
+          )}
           <MenuItem onClick={() => void copyPath(t)}>Copier le chemin</MenuItem>
+          {onShowUsers && <MenuItem onClick={() => onShowUsers(t)}>Utilisateurs de ce titre…</MenuItem>}
+          {canDelete && (
+            <MenuItem disabled={!t.onDisk} onClick={() => void deleteTracks([t])}>
+              Supprimer ce titre…
+            </MenuItem>
+          )}
         </>
       )}
     </Menu>

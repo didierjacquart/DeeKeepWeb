@@ -1,3 +1,5 @@
+import { usePermissions } from '../../../core/auth/usePermissions';
+
 /**
  * Barre d'actions : sélection et vidage à gauche ; Arrêter, Analyser (accent) puis Retélécharger (principal).
  * @param {{
@@ -8,6 +10,7 @@
  */
 export function QualityActions(props) {
   const { scanning, busy, downloading, selectedCount } = props;
+  const { canDownload } = usePermissions();
   return (
     <div className="dk-actions">
       <button className="control-btn" onClick={props.onCheckAll}>
@@ -39,8 +42,12 @@ export function QualityActions(props) {
       <button
         className="primary-btn"
         onClick={props.onRedownload}
-        disabled={downloading}
-        data-tip="Réextraire les titres cochés et remplacer le fichier abîmé dans son dossier d'origine"
+        disabled={downloading || !canDownload}
+        data-tip={
+          canDownload
+            ? "Réextraire les titres cochés et remplacer le fichier abîmé dans son dossier d'origine"
+            : "Vous n'avez pas le droit de télécharger"
+        }
       >
         Retélécharger la sélection{selectedCount > 0 && ` (${selectedCount})`}
       </button>

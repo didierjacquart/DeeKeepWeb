@@ -1,5 +1,5 @@
-import { gql } from '@apollo/client';
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
+import { endpoint } from '../../core/api/endpoints';
 
 /**
  * @typedef {object} FsEntry
@@ -19,23 +19,7 @@ import { api } from '../../core/graphql/api';
  * @property {string[]} roots
  */
 
-export const BROWSE_FOLDER = gql`
-  query BrowseFolder($path: String, $audioOnly: Boolean!) {
-    browseFolder(path: $path, audioOnly: $audioOnly) {
-      localPath
-      parent
-      roots
-      entries {
-        name
-        localPath
-        isDirectory
-        size
-        mtime
-        isAudio
-      }
-    }
-  }
-`;
+export const BROWSE_FOLDER = endpoint('BrowseFolder', 'browseFolder', 'GET /api/library/browse');
 
 /**
  * Contenu d'un dossier du serveur (racines autorisées uniquement) ; `null` = première racine.

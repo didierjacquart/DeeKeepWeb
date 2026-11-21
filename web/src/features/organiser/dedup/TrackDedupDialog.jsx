@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { usePermissions } from '../../../core/auth/usePermissions';
 import { notify } from '../../../core/ui/notify';
 import { confirm } from '../../../shared/dialog/confirm';
 import { DialogActions, DialogContent, DialogTitle } from '../../../shared/dialog/DialogParts';
@@ -10,6 +11,7 @@ import './track-dedup-dialog.scss';
 
 /** Écran « Doublons de la bibliothèque » (Dédoublonner… de la fenêtre de recherche). */
 export function TrackDedupDialog({ items, close }) {
+  const { canDelete } = usePermissions();
   const built = useMemo(() => buildTrackDedupGroups(items), [items]);
   const groups = built.groups;
   const fileCount = groups.reduce((n, g) => n + g.files.length, 0);
@@ -83,7 +85,12 @@ export function TrackDedupDialog({ items, close }) {
         <button className="control-btn" onClick={() => close(undefined)} disabled={busy}>
           Fermer
         </button>
-        <button className="danger-btn" onClick={() => void confirmDelete()} disabled={count === 0 || busy}>
+        <button
+          className="danger-btn"
+          onClick={() => void confirmDelete()}
+          disabled={count === 0 || busy || !canDelete}
+          data-tip={canDelete ? undefined : "Vous n'avez pas le droit de supprimer"}
+        >
           {deleteLabel(count)}
         </button>
       </DialogActions>

@@ -68,6 +68,16 @@
     font-size: 14px;
     font-weight: 500;
     text-decoration: none;
+    // Bouton présenté comme une entrée (déconnexion sans accès aux Paramètres).
+    &:is(button) {
+      border-top: none;
+      border-right: none;
+      border-bottom: none;
+      background: none;
+      font-family: var(--dk-font);
+      text-align: left;
+      cursor: pointer;
+    }
     &:hover {
       background: rgba(255, 255, 255, 0.05);
       color: var(--dk-text);

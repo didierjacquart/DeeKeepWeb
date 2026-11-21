@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useInterval } from '../../../lib/hooks/useInterval';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { SERVICES_Q } from '../diagnostics-api';
 
 /** Période de rafraîchissement de l'état des services. */

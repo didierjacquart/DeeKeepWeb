@@ -1,59 +1,14 @@
-import { gql } from '@apollo/client';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
+import { endpoint } from '../../../core/api/endpoints';
 
-/** Champs de la piste Deezer utiles à l'extraction (ce que la page Musique reçoit). */
-const TRACK_FIELDS = `
-  id title artist artistId album albumId duration rank previewUrl coverSmall coverBig link explicit trackPosition diskNumber
-  presence { key state reason files { path reason bitrate fileSize ext } }
-`;
-const RESULT_FIELDS = `
-  query kind error
-  header { kind id name subtitle picture trackCount fanCount }
-  entities { kind id name subtitle picture trackCount fanCount }
-  tracks { ${TRACK_FIELDS} }
-`;
-const SEARCH = gql`query CatalogSearch($query: String!, $kind: SearchKind!) { search(query: $query, kind: $kind) { ${RESULT_FIELDS} } }`;
-const BROWSE = gql`query CatalogBrowse($kind: EntityKind!, $id: Long!) { browse(kind: $kind, id: $id) { ${RESULT_FIELDS} } }`;
-const HISTORY = gql`
-  query SearchHistory {
-    searchHistory {
-      query
-      position
-    }
-  }
-`;
-const COVER = gql`
-  query SearchCover($query: String!) {
-    searchCover(query: $query) {
-      query
-      url
-    }
-  }
-`;
-const REMEMBER = gql`
-  mutation RememberSearch($query: String!) {
-    rememberSearch(query: $query) {
-      query
-      position
-    }
-  }
-`;
-const DELETE = gql`
-  mutation DeleteSearch($query: String!) {
-    deleteSearch(query: $query) {
-      query
-      position
-    }
-  }
-`;
-const CLEAR = gql`
-  mutation ClearSearches {
-    clearSearches {
-      query
-      position
-    }
-  }
-`;
+/** Pistes Deezer avec leur pastille de présence (✓ ≈ ○ ⏳), entités, en-tête. */
+const SEARCH = endpoint('CatalogSearch', 'search', 'GET /api/catalog/search');
+const BROWSE = endpoint('CatalogBrowse', 'browse', 'GET /api/catalog/browse/{kind}/{id}');
+const HISTORY = endpoint('SearchHistory', 'searchHistory', 'GET /api/catalog/searches');
+const COVER = endpoint('SearchCover', 'searchCover', 'GET /api/catalog/search-cover');
+const REMEMBER = endpoint('RememberSearch', 'rememberSearch', 'POST /api/catalog/searches');
+const DELETE = endpoint('DeleteSearch', 'deleteSearch', 'POST /api/catalog/searches/delete');
+const CLEAR = endpoint('ClearSearches', 'clearSearches', 'POST /api/catalog/searches/clear');
 
 /**
  * Requête du catalogue : recherche (`{ type: 'search', query, kind }`) ou

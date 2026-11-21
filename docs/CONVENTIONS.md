@@ -19,14 +19,14 @@ font foi pour le comportement (constantes, seuils, regex, libellés).
 
 Chaque agent n'écrit que dans **ses** dossiers :
 
-| Domaine | Service | Contrats | Passerelle GraphQL | Tests |
+| Domaine | Service | Contrats | API de la passerelle | Tests |
 |---|---|---|---|---|
-| Catalogue | `src/Services/DeeKeep.Catalog/` | `DeeKeep.Contracts/Catalog/` | `Gateway/Domains/Catalog/` | `tests/DeeKeep.Tests/Catalog/` |
-| Bibliothèque | `src/Services/DeeKeep.Library/` sauf `Organize/` | `DeeKeep.Contracts/Library/` | `Gateway/Domains/Library/` | `tests/DeeKeep.Tests/Library/` |
-| Organiser, doublons, tags | `src/Services/DeeKeep.Library/Organize/` | `DeeKeep.Contracts/Organize/` | `Gateway/Domains/Organize/` | `tests/DeeKeep.Tests/Organize/` |
-| Téléchargement | `src/Services/DeeKeep.Downloader/` | `DeeKeep.Contracts/Downloader/` | `Gateway/Domains/Downloader/` | `tests/DeeKeep.Tests/Downloader/` |
-| Qualité | `src/Services/DeeKeep.Quality/` | `DeeKeep.Contracts/Quality/` | `Gateway/Domains/Quality/` | `tests/DeeKeep.Tests/Quality/` |
-| Archive | `src/Services/DeeKeep.Storage/` | `DeeKeep.Contracts/Storage/` | `Gateway/Domains/Storage/` | `tests/DeeKeep.Tests/Storage/` |
+| Catalogue | `src/Services/DeeKeep.Catalog/` | `DeeKeep.Contracts/Catalog/` | `Gateway/Api/CatalogApi.cs` | `tests/DeeKeep.Tests/Catalog/` |
+| Bibliothèque | `src/Services/DeeKeep.Library/` sauf `Organize/` | `DeeKeep.Contracts/Library/` | `Gateway/Api/LibraryApi.cs` | `tests/DeeKeep.Tests/Library/` |
+| Organiser, doublons, tags | `src/Services/DeeKeep.Library/Organize/` | `DeeKeep.Contracts/Organize/` | `Gateway/Api/OrganizeApi.cs` | `tests/DeeKeep.Tests/Organize/` |
+| Téléchargement | `src/Services/DeeKeep.Downloader/` | `DeeKeep.Contracts/Downloader/` | `Gateway/Api/DownloaderApi.cs` | `tests/DeeKeep.Tests/Downloader/` |
+| Qualité | `src/Services/DeeKeep.Quality/` | `DeeKeep.Contracts/Quality/` | `Gateway/Api/QualityApi.cs` | `tests/DeeKeep.Tests/Quality/` |
+| Archive | `src/Services/DeeKeep.Storage/` | `DeeKeep.Contracts/Storage/` | `Gateway/Api/StorageApi.cs` | `tests/DeeKeep.Tests/Storage/` |
 
 Les fichiers de contrats existants (`*Contracts.cs`) sont **partagés** : on
 peut **ajouter** des membres (champs en fin de record avec valeur par défaut,
@@ -107,21 +107,23 @@ agent, construire seulement ses propres projets
   (déjà géré par `ProcessRunner`), pas de chargement de fichiers entiers en
   mémoire (flux), caches bornés.
 
-## Passerelle GraphQL (HotChocolate 16)
+## API de la passerelle (REST + SSE)
 
-- Un dossier `src/Gateway/DeeKeep.Gateway/Domains/<Domaine>/` par domaine.
-- Classes statiques partielles annotées `[QueryType]`, `[MutationType]`,
-  `[SubscriptionType]` (générateur de sources : elles sont ajoutées
-  automatiquement, rien à enregistrer). Modèle : `Domains/Jobs/JobTypes.cs`.
-- Les résolveurs appellent les clients typés, injectés par paramètre **marqué `[Service]`** (sinon HotChocolate en fait un argument GraphQL).
-- Vérifier le schéma : `dotnet test --project tests/DeeKeep.Tests -- --filter-class "DeeKeep.Tests.Gateway.SchemaTests"` (construit le schéma complet et écrit `docs/schema.graphql`). Les noms de types C# exposés doivent être uniques dans tout le schéma (préfixer si besoin).
-- Abonnements : sujet `Topics.For(EventTypes.X)`, message `ServiceEvent`,
-  désérialiser `evt.Data` avec `JsonDefaults.Options` (voir `JobSubscriptions`).
-- Noms GraphQL en anglais (camelCase), descriptions (`/// <summary>`) en français.
-- Les types `JsonNode` sont exposés en scalaire `Any`.
-- Pas d'erreur fatale : une panne de service doit donner une erreur GraphQL
-  partielle (déjà traduite par `ServiceErrorFilter`).
-- Mutations destinées à la file hors ligne du client : idempotentes côté
+- Un fichier `src/Gateway/DeeKeep.Gateway/Api/<Domaine>Api.cs` par domaine,
+  méthode d'extension `Map<Domaine>Api(this RouteGroupBuilder api)` appelée par
+  `ApiSetup.MapDeeKeepApi` ; routes sous `/api/<domaine>/...` (API minimales).
+- Lectures en `GET` (paramètres d'URL), actions en `POST`/`PUT` (corps JSON,
+  records `…Body` déclarés dans le fichier du domaine). Les points d'API
+  appellent les clients typés, injectés par paramètre.
+- JSON du client (`ApiSetup.ClientJson`) : propriétés en camelCase,
+  énumérations en MAJUSCULES (`QUEUED`, `PRESENT`).
+- Erreurs : `ApiErrorFilter` rend `{ error, code }` — `SERVICE_UNAVAILABLE`
+  (503, le client met l'action en file hors ligne), `SERVICE_ERROR` (422),
+  `INVALID_ARGUMENT` (400), `INVALID_OPERATION` (409).
+- Événements : `GET /api/events` (Server-Sent Events) relaie tous les
+  événements des services (`event: job.updated`, `data: {…}`) ; `EventHub`
+  remet les charges utiles au format du client.
+- Actions destinées à la file hors ligne du client : idempotentes côté
   métier autant que possible (l'en-tête `X-Idempotency-Key` est géré par la passerelle).
 
 ## Style
@@ -136,8 +138,8 @@ sans y écrire).
 
 React 19 en **JavaScript** (`.jsx` pour les composants, `.js` pour le reste ;
 types documentés en JSDoc là où ils aident), React Router 8 (routeur de
-données, pages chargées à la demande), Apollo Client 4 (utilisé directement,
-sans liaison React), graphql-ws, Vite 8, SCSS, PWA par `vite-plugin-pwa`
+données, pages chargées à la demande), `fetch` et `EventSource` (aucune
+bibliothèque réseau), rxjs, Vite 8, SCSS, PWA par `vite-plugin-pwa`
 (Workbox). Aucune bibliothèque de composants : dialogues, menus, infobulles,
 messages et listes virtuelles sont des primitives maison (`src/shared/`).
 
@@ -157,7 +159,7 @@ src/
   main.jsx              démarrage (cache restauré, routeur, service worker)
   app/                  routes.jsx (table des routes), Root.jsx, RouteError.jsx
   lib/                  store.js, cx.js, hooks/ (un hook par fichier)
-  core/                 services (singletons) : auth, graphql, jobs, offline, player, ui
+  core/                 services (singletons) : auth, api, jobs, offline, player, ui
   shared/               primitives d'interface : components/, dialog/, menu/, tooltip/,
                         virtual-list/, fs-browser/, format.js, urls.js
   layout/               shell/ (coquille, navigation), jobs-panel/, AppLogo, nav-badges
@@ -173,24 +175,26 @@ dont la classe est aussi exportée pour les tests ; ils dérivent de `Store`
 l'instance. Un composant lit un service avec `useStore(service)` ou
 `useStore(service, s => s.champ)` — le sélecteur rend une partie de l'état ou
 une valeur simple, jamais un objet construit à la volée (dériver ensuite avec
-`useMemo`). Importer un module n'ouvre aucune connexion : le client Apollo est
-créé au premier appel (`getApollo()`).
+`useMemo`). Importer un module n'ouvre aucune connexion : le flux d'événements
+s'ouvre au premier abonnement.
 
 | Fichier | Rôle |
 |---|---|
 | `lib/store.js` | `Store` (`state`, `setState`, `subscribe`) et le hook `useStore`. |
 | `lib/cx.js` | `cx(...classes)`. |
 | `lib/hooks/` | `useMediaQuery` (`useMobile()`, < 900 px), `useSubscription(observable, onNext)` (observable mémorisé par l'appelant, `null` = rien), `useInterval(cb, ms)`, `useDebounced(v, ms)`, `useEscape(cb, actif)`, `useLatest(v)` (relire l'état après un `await` dans un gestionnaire). |
-| `core/graphql/api.js` | `api.watch(query, vars)` → `Observable<QueryState>` (cache puis réseau, marche hors ligne) ; `api.query()` ; `api.mutate(m, vars, {label, queueable, refetch})` (clé d'idempotence, **mise en file hors ligne** si `queueable`) ; `api.subscribe()` ; `api.refetchActive()`. |
-| `core/graphql/useWatch.js` | `useWatch(query, vars)` → `QueryState` (`null` suspend la requête). |
-| `core/jobs/jobs.js` | `jobs` : toutes les tâches de fond (`state.all`, `state.active`, `get(id)`, `items({jobId,type})`, `cancel`, `retry`, `upsert`, `forget`, `load`), `isActive`, `JOB_FIELDS`, typedef `Job`. |
+| `core/api/endpoints.js` | Déclaration des appels : `endpoint(nom, champ, 'GET /api/...', {body, params, result})`, `combine(nom, ...endpoints)`, `serverEvent(nom, champ, type, filtre)`. Le résultat est rendu sous `{ champ: … }`. |
+| `core/api/api.js` | `api.watch(op, vars)` → `Observable<QueryState>` (cache puis réseau, marche hors ligne) ; `api.query()` ; `api.mutate(m, vars, {label, queueable, refetch})` (clé d'idempotence, **mise en file hors ligne** si `queueable`) ; `api.subscribe()` ; `api.refetchActive()`. |
+| `core/api/useWatch.js` | `useWatch(op, vars)` → `QueryState` (`null` suspend la requête). |
+| `core/jobs/jobs.js` | `jobs` : toutes les tâches de fond (`state.all`, `state.active`, `get(id)`, `items({jobId,type})`, `cancel`, `retry`, `upsert`, `forget`, `load`), `isActive`, typedef `Job`. |
 | `core/jobs/useJobs.js` | `useJobsByType(...types)`, `useJobsByGroup(key)`, `useJob(id)`. |
 | `core/player/player.js` | `player` : `play(track, queue)` (la liste affichée devient la file), `togglePreview(track)` (extrait 30 s, « un seul son à la fois »), `current`… ; la position est dans `player.clock` (store à part). `currentTrack(state)`, typedef `PlayerTrack`. |
 | `core/player/offline-audio.js` | `offlineAudio` : `pin(src)`, `unpin`, `isPinned`, état `pinned`. |
 | `core/offline/connectivity.js` | `connectivity`, `linkState(state)` → online/reconnecting/offline ; `state.resyncTick` (incrémenté à chaque reconnexion). |
 | `core/offline/offline-queue.js` | `offlineQueue` : actions en attente (`state.items`, `remove`). |
 | `core/ui/notify.js` | `notify.info/success/error`. |
-| `core/auth/auth.js` | `auth` (`state.session`, `login`, `setup`, `changePassword`, `logout`), `requireSession` (garde des routes). |
+| `core/auth/auth.js` | `auth` (`state.session` : nom, `role`, `pages`, `canDownload`, `canDelete` ; `login`, `setup`, `changePassword`, `logout`), `requireSession` et `requirePage(clé)` (gardes des routes), `redirectHome`. |
+| `core/auth/permissions.js`, `usePermissions.js` | `canSeePage(session, clé)`, `can(session, 'download' \| 'delete')`, `firstAllowedPath` ; hook `usePermissions()` → `{ admin, canDownload, canDelete, canSee }` pour masquer ce que le serveur refuserait (403 : `notify.error` + droits relus, fixé dans `main.jsx`). |
 | `shared/components/` | `<ProgressBar value label large />`, `<PresenceBadge state tooltip />`. |
 | `shared/dialog/` | `openDialog(close => <Contenu close={close} />, {width, height, maxWidth, maxHeight, panelClass, autoFocus, disableClose})` → `Promise<résultat \| undefined>` (`dialog-stack.js`) ; `<DialogTitle>`, `<DialogContent>`, `<DialogActions>` (`DialogParts.jsx`) ; `confirm({title,message,confirm,danger})` → `Promise<boolean>` (`confirm.jsx`) ; `data-autofocus` désigne le champ qui prend le focus. |
 | `shared/menu/` | `<Menu at={{x,y} \| null} onClose>` (menu contextuel), `<MenuItem onClick disabled>`, `<SubMenu label>`, `<MenuButton className label>` (menu déroulant sous un bouton). |
@@ -206,7 +210,7 @@ créé au premier appel (`getApollo()`).
 - **Découpage** : un composant par fichier `PascalCase.jsx` (export nommé) ;
   un fichier ne mélange pas composants et autres exports (règle
   `react-refresh`). La logique d'une page (chargement, abonnements, actions)
-  vit dans des hooks `hooks/useXxx.js` ; les documents GraphQL et appels
+  vit dans des hooks `hooks/useXxx.js` ; les déclarations d'appels
   serveur dans `<page>-api.js` ; les calculs purs (tri, filtres, libellés,
   conversion de lignes) dans des modules `.js` testables sans rendu. Viser
   moins de 200 lignes par fichier.

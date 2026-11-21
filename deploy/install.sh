@@ -80,18 +80,32 @@ if [ ! -f /etc/caddy/Caddyfile.deekeep-installed ]; then
     echo "   -> /etc/caddy/Caddyfile installé : choisissez le nom du site (voir commentaires)."
 fi
 
-if [ ! -f "$DATA/deekeep_cache.db" ]; then
-    echo "   !! Copiez la base existante dans $DATA/deekeep_cache.db (puis chown deekeep:deekeep)."
+# Emplacement configuré de la base (sur le NAS après deekeep-nas-setup.sh).
+MAIN_DB=$(sed -n 's/.*"MainPath": *"\([^"]*\)".*/\1/p' "$CONF/appsettings.json" | head -n 1)
+MAIN_DB=${MAIN_DB:-$DATA/deekeep_cache.db}
+if [ ! -f "$MAIN_DB" ]; then
+    echo "   !! Base absente : $MAIN_DB"
+    echo "      Copiez-y la base existante (puis chown deekeep:deekeep), ou placez-la sur le NAS :"
+    echo "      sudo sh $PREFIX/bin/deekeep-nas-setup.sh //NAS/partage/dossier"
     echo "      Sous Windows elle se trouve dans %APPDATA%\\DeeKeep\\deekeep_cache.db."
 fi
 
 echo "== Services"
 cp "$HERE"/systemd/* /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable --now deekeep.target deekeep-health.timer deekeep-backup.timer
+systemctl enable deekeep.target deekeep-health.timer deekeep-backup.timer
 for svc in Catalog Library Downloader Quality Storage Gateway; do systemctl enable "deekeep@$svc" >/dev/null 2>&1; done
-systemctl restart deekeep.target
 systemctl reload caddy 2>/dev/null || systemctl restart caddy
+# Sans la base, les services en créeraient une vide à l'emplacement configuré : ils
+# attendent qu'elle soit en place (puis : sudo systemctl start deekeep.target).
+if [ -f "$MAIN_DB" ]; then
+    systemctl start deekeep-health.timer deekeep-backup.timer
+    systemctl restart deekeep.target
+else
+    systemctl stop deekeep.target 2>/dev/null || true
+    echo ""
+    echo "Services NON démarrés : base absente. Une fois en place : sudo systemctl start deekeep.target"
+fi
 
 echo ""
 echo "DeeKeep $(cat "$PREFIX/VERSION") installé."

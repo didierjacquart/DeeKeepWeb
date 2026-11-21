@@ -3,9 +3,11 @@ using DeeKeep.Common.Data;
 using DeeKeep.Common.Events;
 using DeeKeep.Contracts;
 using DeeKeep.Contracts.Library;
+using DeeKeep.Contracts.Sync;
 using DeeKeep.Library.History;
 using DeeKeep.Library.Presence;
 using DeeKeep.Library.Tracks;
+using DeeKeep.Library.Users;
 
 namespace DeeKeep.Library.Files;
 
@@ -22,6 +24,7 @@ public sealed class FileRegistrar(
     TrackCatalog catalog,
     PresenceService presence,
     EventLog events,
+    UserTracks users,
     ILogger<FileRegistrar> logger)
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
@@ -100,6 +103,11 @@ public sealed class FileRegistrar(
         disk.Invalidate([local, .. removed.Select(paths.ToLocal)]);
         if (removed.Count > 0) presence.Removed(removed);
         presence.Added(dbPath, tags.TitleTagged ? tags.Title : null, tags.Artist, tags.Album);
+        // Bibliothèques personnelles : les utilisateurs suivent le fichier déplacé ou remplacé ; celui
+        // qui l'a téléchargé le reçoit dans ses titres.
+        if (replacedDb is not null) users.Move(replacedDb, dbPath);
+        if (!string.IsNullOrEmpty(request.UserId)) users.Link(request.UserId, [dbPath], request.Origin);
+        if (request.DeezerId is { } deezerId) users.LinkExpected(deezerId, dbPath);
         events.Publish(EventTypes.TracksChanged, new TracksChangedEvent([dbPath], "register:" + request.Origin));
         if (removed.Count > 0) events.Publish(EventTypes.TracksRemoved, new TracksChangedEvent(removed, "replaced"));
         if (request.AddToHistory) events.Publish(EventTypes.HistoryChanged, new TracksChangedEvent([dbPath], "register"));
@@ -118,19 +126,49 @@ public sealed class FileRegistrar(
         var deleted = new List<string>();
         var failed = new List<string>();
         var errors = new List<string>();
-        var stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+        var unlinked = new List<string>();
+        var personal = request.UserId is { Length: > 0 } && request.Reason == "user";
+        // Suppression d'outil (rangement, doublons) : les utilisateurs du fichier retiré sont reportés sur la copie gardée.
+        var heirs = new Dictionary<string, (IReadOnlyList<string> Users, string? Title, string? Artist, string? Album)>(StringComparer.Ordinal);
+        var stamp = DateTime.Now.ToString(TrashService.StampFormat);
+        var trashed = new List<TrashedFile>();
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
         foreach (var raw in request.Paths.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.Ordinal))
         {
             ct.ThrowIfCancellationRequested();
             // Chemins de la base attendus ; un chemin local Linux (« /srv/… ») est aussi accepté.
             var dbPath = raw.StartsWith('/') && File.Exists(raw) ? paths.ToDb(raw) : raw;
             var local = paths.ToLocal(dbPath);
+            if (personal)
+            {
+                var wasLinked = users.IsLinked(request.UserId!, dbPath);
+                var others = users.UsersOf(dbPath).Where(u => u.Id != request.UserId).Select(u => u.Name).ToList();
+                if (others.Count > 0)
+                {
+                    if (wasLinked)
+                    {
+                        // D'autres l'utilisent : seul le lien de cet utilisateur est rompu, le fichier reste.
+                        users.Unlink(request.UserId!, [dbPath]);
+                        unlinked.Add(dbPath);
+                    }
+                    else
+                    {
+                        failed.Add(dbPath);
+                        errors.Add($"{Path.GetFileName(local)} — utilisé par {string.Join(", ", others)} : retirez-le d'abord de leurs titres");
+                    }
+                    continue;
+                }
+            }
+            else if (users.UserIdsOf(dbPath) is { Count: > 0 } owners && catalog.Get(dbPath) is { } entry)
+            {
+                heirs[dbPath] = (owners, entry.Title, entry.Artist, entry.Album);
+            }
             try
             {
                 if (File.Exists(local))
                 {
                     if (!paths.IsAllowed(local)) throw new UnauthorizedAccessException("hors des dossiers de la bibliothèque");
-                    if (request.ToTrash) MoveToTrash(local, stamp);
+                    if (request.ToTrash) trashed.Add(new TrashedFile(dbPath, MoveToTrash(local, stamp), now));
                     else File.Delete(local);
                 }
                 deleted.Add(dbPath);
@@ -141,8 +179,41 @@ public sealed class FileRegistrar(
                 errors.Add($"{Path.GetFileName(local)} — {ex.Message}");
             }
         }
-        if (deleted.Count > 0) await ForgetAsync(deleted, request.Reason, ct);
-        return new DeleteFilesResult(deleted, failed, errors);
+        if (deleted.Count > 0)
+        {
+            await ForgetAsync(deleted, request.Reason, ct);
+            users.Forget(deleted);
+            Rehome(deleted, heirs);
+        }
+        // Seule une suppression faite dans l'application se propage au disque USB.
+        if (trashed.Count > 0) events.Publish(TrashEvents.Trashed, new FilesTrashedEvent(trashed));
+        if (unlinked.Count > 0) events.Publish(EventTypes.TracksChanged, new TracksChangedEvent(unlinked, "unlinked"));
+        return new DeleteFilesResult(deleted, failed, errors, unlinked);
+    }
+
+    /// <summary>
+    /// Un doublon retiré par un outil (Organiser) : ses utilisateurs reçoivent la copie restante du même
+    /// titre (même règle que la pastille ✓), pour ne pas le perdre de leur bibliothèque.
+    /// </summary>
+    private void Rehome(IReadOnlyList<string> deleted, Dictionary<string, (IReadOnlyList<string> Users, string? Title, string? Artist, string? Album)> heirs)
+    {
+        foreach (var path in deleted)
+        {
+            if (!heirs.TryGetValue(path, out var h) || string.IsNullOrWhiteSpace(h.Title) || string.IsNullOrWhiteSpace(h.Artist)) continue;
+            try
+            {
+                var verdict = presence.Lookup([new PresenceQuery(path, h.Title!, h.Artist!, h.Album)]).FirstOrDefault();
+                if (verdict?.State != PresenceState.Present) continue;
+                var kept = verdict.Files.Select(f => File.Exists(f.Path) ? paths.ToDb(f.Path) : f.Path)
+                    .FirstOrDefault(p => LibraryPaths.Key(p) != LibraryPaths.Key(path));
+                if (kept is null) continue;
+                foreach (var user in h.Users) users.Link(user, [kept], "dedup");
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogWarning(ex, "Utilisateurs du doublon {Path} non reportés", path);
+            }
+        }
     }
 
     /// <summary>
@@ -186,7 +257,8 @@ public sealed class FileRegistrar(
         if (updated.Count > 0) events.Publish(EventTypes.TracksChanged, new TracksChangedEvent(updated.Select(r => (string)r["path"]!).ToList(), reason));
     }
 
-    private void MoveToTrash(string local, string stamp)
+    /// <summary>Déplace le fichier dans la corbeille ; rend son chemin relatif à la racine de la bibliothèque (null hors racine).</summary>
+    private string? MoveToTrash(string local, string stamp)
     {
         var root = paths.LocalDownloadDir();
         string trashRoot, relative;
@@ -206,5 +278,8 @@ public sealed class FileRegistrar(
         if (File.Exists(target)) target = Path.Join(Path.GetDirectoryName(target), $"{Path.GetFileNameWithoutExtension(target)}.{Guid.NewGuid():N}{Path.GetExtension(target)}");
         File.Move(full, target);
         logger.LogInformation("Mis à la corbeille : {Path} → {Target}", local, target);
+        return trashRoot.StartsWith(Path.Join(root, LibraryPaths.TrashFolder), StringComparison.Ordinal)
+            ? relative.Replace('\\', '/')
+            : null;
     }
 }

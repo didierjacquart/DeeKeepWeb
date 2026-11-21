@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { debounceTime } from 'rxjs';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { navBadges } from '../../../layout/nav-badges';
 import { HISTORY_CHANGED, HISTORY_Q } from '../history-api';
 

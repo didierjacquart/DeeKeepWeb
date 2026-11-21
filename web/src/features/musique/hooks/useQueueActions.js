@@ -48,6 +48,14 @@ export function useQueueActions({ rows, rowsRef, eligible, failedRows, selected,
         pendingRows.map(p => p.id),
       );
       if (r.error) notify.error(r.error);
+      else if (r.data?.enqueueDownloads) {
+        // Un titre déjà présent (ou en cours pour quelqu'un d'autre) n'est pas retéléchargé : il rejoint vos titres.
+        const shared = pendingRows.length - r.data.enqueueDownloads.length;
+        if (shared > 0)
+          notify.info(
+            `${shared} titre(s) déjà dans la bibliothèque : ajouté(s) à vos titres sans nouveau téléchargement.`,
+          );
+      }
     }
     if (failed.length) await retryJobs(failed);
     clearSelection();

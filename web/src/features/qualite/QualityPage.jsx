@@ -22,7 +22,7 @@ import './quality-page.scss';
  * Écran « Qualité » : mesure du signal de chaque fichier (tâche serveur « quality.scan »), verdict recalculé
  * par le serveur avec les seuils courants, retéléchargement des titres abîmés et réanalyse automatique.
  * La liste vit sur le serveur : quitter la page ou perdre la connexion n'interrompt rien, et les lignes
- * arrivent au fil de l'eau par l'abonnement « qualityUpdated ».
+ * arrivent au fil de l'eau par l'événement « quality.updated ».
  */
 export function QualityPage() {
   const compact = useMobile();

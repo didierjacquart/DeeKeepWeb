@@ -132,8 +132,11 @@ public static class ServiceDefaults
         return builder;
     }
 
-    /// <summary>Points communs : santé, flux d'événements, tâches ; contrôle de la clé interne sur <c>/internal</c> et <c>/api</c>.</summary>
-    public static WebApplication MapDeeKeepDefaults(this WebApplication app)
+    /// <summary>
+    /// Points communs : santé, flux d'événements, tâches ; contrôle de la clé interne sur <c>/internal</c>
+    /// et, sauf <paramref name="publicApi"/> (la passerelle, dont <c>/api</c> sert le navigateur), sur <c>/api</c>.
+    /// </summary>
+    public static WebApplication MapDeeKeepDefaults(this WebApplication app, bool publicApi = false)
     {
         var key = app.Services.GetRequiredService<InternalKey>().Value;
         if (!string.IsNullOrEmpty(key))
@@ -141,7 +144,7 @@ public static class ServiceDefaults
             app.Use(async (ctx, next) =>
             {
                 var path = ctx.Request.Path;
-                if ((path.StartsWithSegments("/internal") || path.StartsWithSegments("/api")) &&
+                if ((path.StartsWithSegments("/internal") || (!publicApi && path.StartsWithSegments("/api"))) &&
                     ctx.Request.Headers[InternalKeyHeader] != key)
                 {
                     ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;

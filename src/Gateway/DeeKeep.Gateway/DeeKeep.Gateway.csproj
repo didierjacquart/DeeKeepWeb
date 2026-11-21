@@ -3,8 +3,6 @@
     <RootNamespace>DeeKeep.Gateway</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="HotChocolate.AspNetCore" />
-    <PackageReference Include="HotChocolate.Types.Analyzers" />
     <PackageReference Include="Yarp.ReverseProxy" />
   </ItemGroup>
   <ItemGroup>

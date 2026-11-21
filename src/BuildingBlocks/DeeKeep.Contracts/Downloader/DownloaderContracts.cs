@@ -11,7 +11,7 @@ public sealed record ExportOptions(string Format, string Quality);
 /// devient une tâche « download » du groupe <see cref="BatchId"/>.
 /// </summary>
 public sealed record EnqueueDownloadsRequest(IReadOnlyList<DeezerTrack> Tracks, ExportOptions? Options = null, string? BatchId = null,
-    IReadOnlyList<Guid>? PendingIds = null);
+    IReadOnlyList<Guid>? PendingIds = null, string? UserId = null);
 
 /// <summary>Conversion sur place de fichiers locaux (page Réencoder).</summary>
 public sealed record ConvertItem(string LocalPath, long? DeezerId = null);
@@ -29,7 +29,7 @@ public sealed record DownloadJobResult(string? LocalPath, string? DbPath, string
     long? DeezerId = null);
 
 /// <summary>Charge utile d'une tâche « download » (une ligne de la page Musique).</summary>
-public sealed record DownloadJobPayload(DeezerTrack Track, ExportOptions? Options, string BatchId);
+public sealed record DownloadJobPayload(DeezerTrack Track, ExportOptions? Options, string BatchId, string? UserId = null);
 
 /// <summary>Charge utile d'une tâche « convert » (une ligne de la page Réencoder).</summary>
 public sealed record ConvertJobPayload(ConvertItem Item, ExportOptions? Options, string BatchId);

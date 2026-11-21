@@ -1,5 +1,5 @@
 import { act, screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithRouter, makeJob } from '../test/render';
 import { mockApi } from '../test/mock-api';
 import { setMobile } from '../test/media';
@@ -9,7 +9,8 @@ import { offlineQueue } from '../core/offline/offline-queue';
 import { navBadges } from './nav-badges';
 import { Shell } from './shell/Shell';
 import { JobsPanel } from './jobs-panel/JobsPanel';
-import { isToolPage, pageTitle } from './shell/nav-items';
+import { auth } from '../core/auth/auth';
+import { BOTTOM_NAV, MAIN_NAV, TOOLS_NAV, isToolPage, pageTitle, visibleNav } from './shell/nav-items';
 
 /** La coquille seule, sur toutes les adresses : la navigation change l'URL sans charger de page. */
 function renderShellWithPages(route) {
@@ -131,5 +132,46 @@ describe('JobsPanel', () => {
   it('annonce l’absence de tâche', () => {
     renderWithRouter(<JobsPanel onClose={() => undefined} />);
     expect(screen.getByText('Aucune tâche en cours.')).toBeInTheDocument();
+  });
+});
+
+describe('navigation selon les droits', () => {
+  const limited = {
+    authEnabled: true,
+    authenticated: true,
+    user: 'invite',
+    role: 'user',
+    pages: ['musique', 'qualite'],
+    canDownload: false,
+    canDelete: false,
+  };
+
+  afterEach(() => auth.setState({ session: null }));
+
+  it('ne garde que les pages ouvertes au compte', () => {
+    const paths = items => visibleNav(items, limited).map(i => i.path);
+    expect(paths(MAIN_NAV)).toEqual(['/musique']);
+    expect(paths(TOOLS_NAV)).toEqual(['/qualite']);
+    expect(paths(BOTTOM_NAV)).toEqual([]);
+    expect(visibleNav(BOTTOM_NAV, { ...limited, role: 'admin' }).map(i => i.path)).toContain('/administration');
+  });
+
+  it('masque les entrées refusées et propose la déconnexion sans accès aux Paramètres', () => {
+    auth.setState({ session: limited });
+    renderShellWithPages('/musique');
+    const nav = screen.getByRole('navigation', { name: 'Navigation principale' });
+    expect(within(nav).getByRole('link', { name: /Musique/ })).toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: /Qualité/ })).toBeInTheDocument();
+    for (const hidden of [/Bibliothèque/, /Organiser/, /Paramètres/, /Administration/, /Historique/])
+      expect(within(nav).queryByRole('link', { name: hidden })).not.toBeInTheDocument();
+    expect(within(nav).getByRole('button', { name: /Se déconnecter/ })).toBeInTheDocument();
+  });
+
+  it('montre l’administration à un administrateur', () => {
+    auth.setState({ session: { ...limited, role: 'admin', pages: [] } });
+    renderShellWithPages('/musique');
+    expect(screen.getByRole('link', { name: /Administration/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Organiser/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Se déconnecter/ })).not.toBeInTheDocument();
   });
 });

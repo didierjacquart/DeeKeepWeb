@@ -10,7 +10,7 @@ export function linkState(s) {
 
 /**
  * Connaissance de la connectivité : réseau du navigateur ET joignabilité du
- * serveur (la WebSocket GraphQL sert de sonde). Un téléphone « en ligne » dont
+ * serveur (le flux d'événements /api/events sert de sonde). Un téléphone « en ligne » dont
  * le serveur ne répond pas est traité comme hors ligne.
  */
 export class ConnectivityService extends Store {
@@ -43,7 +43,7 @@ export class ConnectivityService extends Store {
     return this.linkState === 'online';
   }
 
-  /** Appelé par le client graphql-ws. */
+  /** Appelé par le flux d'événements (EventStream). */
   connected() {
     const resync = this.wasConnected;
     this.wasConnected = true;

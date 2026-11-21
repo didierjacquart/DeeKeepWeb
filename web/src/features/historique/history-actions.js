@@ -1,4 +1,4 @@
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
 import { player } from '../../core/player/player';
 import { notify } from '../../core/ui/notify';
 import { confirm } from '../../shared/dialog/confirm';

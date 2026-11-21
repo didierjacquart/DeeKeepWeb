@@ -12,6 +12,7 @@ using DeeKeep.Library.History;
 using DeeKeep.Library.Presence;
 using DeeKeep.Library.Settings;
 using DeeKeep.Library.Tracks;
+using DeeKeep.Library.Users;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -23,6 +24,7 @@ namespace DeeKeep.Tests.Library;
 /// <summary>Recherche multi-tags, propositions, réglages et écritures en base (ligne complète, empreinte h conforme).</summary>
 public class LibraryDataTests : IDisposable
 {
+    private readonly WebDb _web;
     private readonly string _dir = Path.Combine(Path.GetTempPath(), "deekeep-tests", Guid.NewGuid().ToString("N"));
     private readonly string _music;
     private readonly DeeKeepDb _db;
@@ -40,8 +42,8 @@ public class LibraryDataTests : IDisposable
         var options = Options.Create(new DatabaseOptions { MainPath = Path.Combine(_dir, "main.db"), WebPath = Path.Combine(_dir, "web.db") });
         _db = new DeeKeepDb(options);
         _db.EnsureSchema();
-        var web = new WebDb(options);
-        _events = new EventLog(web, new ServiceIdentity("library"), NullLogger<EventLog>.Instance);
+        _web = new WebDb(options);
+        _events = new EventLog(_web, new ServiceIdentity("library"), NullLogger<EventLog>.Instance);
         var config = new ConfigurationBuilder().Build();
         _settings = new SettingsStore(_db, _events, config, NullLogger<SettingsStore>.Instance);
         _settings.Set(new Dictionary<string, JsonNode?> { ["download_dir"] = _music });
@@ -161,8 +163,7 @@ public class LibraryDataTests : IDisposable
         var file = Path.Combine(_music, "Queen", "Yeah - Queen.mp3");
         Directory.CreateDirectory(Path.GetDirectoryName(file)!);
         File.Copy(sample, file);
-        var catalog = new TrackCatalog(_db, _paths, _disk, new BitrateBackfill(_db, new PathMap(Options.Create(new PathMapOptions())), _events, NullLogger<BitrateBackfill>.Instance));
-        var registrar = new FileRegistrar(_db, _paths, _disk, _writer, catalog, _presence, _events, NullLogger<FileRegistrar>.Instance);
+        var (catalog, registrar, _) = Registrar();
 
         var first = await registrar.RegisterAsync(new RegisterFileRequest(file, "download", AddToHistory: true), TestContext.Current.CancellationToken);
         Assert.NotNull(first);
@@ -193,6 +194,94 @@ public class LibraryDataTests : IDisposable
         Assert.Equal(1, history.PurgeMissing().Removed);
         Assert.Empty(history.List());
         Assert.Equal(1L, after.ExecuteScalar<long>("SELECT COUNT(*) FROM tracks WHERE deleted = 1"));
+    }
+
+    private (TrackCatalog Catalog, FileRegistrar Registrar, UserTracks Users) Registrar()
+    {
+        var users = new UserTracks(_web, NullLogger<UserTracks>.Instance);
+        var catalog = new TrackCatalog(_db, _paths, _disk,
+            new BitrateBackfill(_db, new PathMap(Options.Create(new PathMapOptions())), _events, NullLogger<BitrateBackfill>.Instance), users);
+        var registrar = new FileRegistrar(_db, _paths, _disk, _writer, catalog, _presence, _events, users, NullLogger<FileRegistrar>.Instance);
+        return (catalog, registrar, users);
+    }
+
+    /// <summary>Comptes tels que la passerelle les crée (seuls id, nom, rôle et état comptent ici).</summary>
+    private void CreateAccounts(params (string Id, string Name, string Role)[] accounts)
+    {
+        using var conn = _web.Open();
+        conn.Execute("CREATE TABLE IF NOT EXISTS users (name TEXT PRIMARY KEY, password_hash TEXT NOT NULL, created_at REAL NOT NULL, " +
+                     "id TEXT, role TEXT NOT NULL DEFAULT 'admin', pages TEXT NOT NULL DEFAULT '[]', can_download INTEGER NOT NULL DEFAULT 1, " +
+                     "can_delete INTEGER NOT NULL DEFAULT 1, disabled INTEGER NOT NULL DEFAULT 0)");
+        var at = 1.0;
+        foreach (var (id, name, role) in accounts)
+            conn.Execute("INSERT INTO users (name, password_hash, created_at, id, role) VALUES (@name, 'x', @at, @id, @role)",
+                new { name, at = at++, id, role });
+    }
+
+    [Fact]
+    public async Task A_shared_title_is_only_unlinked_until_its_last_user_deletes_it()
+    {
+        if (SampleMp3 is not { } sample) return;
+        CreateAccounts(("adm", "Didier", "admin"), ("a", "Alice", "user"), ("b", "Bob", "user"));
+        var file = Path.Combine(_music, "Queen", "Yeah - Queen.mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        File.Copy(sample, file);
+        var (catalog, registrar, users) = Registrar();
+        var ct = TestContext.Current.CancellationToken;
+
+        // Alice le télécharge ; Bob « télécharge » le même titre : simple association, un seul fichier.
+        var track = await registrar.RegisterAsync(new RegisterFileRequest(file, "download", AddToHistory: true, UserId: "a"), ct);
+        users.Link("b", [track!.Path], "download");
+        Assert.Equal(["Alice", "Bob"], users.UsersOf(track.Path).Select(u => u.Name));
+        Assert.Single(catalog.Query(new TrackQuery(UserId: "a", Limit: 0)).Items);
+        Assert.Empty(catalog.Query(new TrackQuery(UserId: "adm", Limit: 0)).Items);
+        Assert.Equal(["Alice", "Bob"], catalog.Query(new TrackQuery(IncludeUsers: true, Limit: 0)).Items.Single().Users);
+
+        // L'administrateur, qui ne l'a pas, ne peut pas le supprimer sous leurs pieds.
+        var refused = await registrar.DeleteAsync(new DeleteFilesRequest([track.Path], "user", UserId: "adm", IsAdmin: true), ct);
+        Assert.Equal([track.Path], refused.Failed);
+        Assert.Contains("Alice, Bob", refused.Errors.Single());
+
+        // Alice le supprime : seul son lien est rompu, le fichier reste pour Bob.
+        var first = await registrar.DeleteAsync(new DeleteFilesRequest([track.Path], "user", UserId: "a"), ct);
+        Assert.Equal([track.Path], first.Unlinked);
+        Assert.Empty(first.Deleted);
+        Assert.True(File.Exists(file));
+        Assert.Empty(catalog.Query(new TrackQuery(UserId: "a", Limit: 0)).Items);
+
+        // Bob, dernier utilisateur, le supprime : le fichier part à la corbeille.
+        var last = await registrar.DeleteAsync(new DeleteFilesRequest([track.Path], "user", UserId: "b"), ct);
+        Assert.Equal([track.Path], last.Deleted);
+        Assert.False(File.Exists(file));
+        Assert.Empty(users.UsersOf(track.Path));
+    }
+
+    [Fact]
+    public async Task Links_follow_a_moved_file_and_orphans_go_to_the_first_admin()
+    {
+        if (SampleMp3 is not { } sample) return;
+        CreateAccounts(("adm", "Didier", "admin"), ("a", "Alice", "user"));
+        var from = Path.Combine(_music, "Divers", "Yeah - Queen.mp3");
+        var to = Path.Combine(_music, "Queen", "Yeah - Queen.mp3");
+        Directory.CreateDirectory(Path.GetDirectoryName(from)!);
+        Directory.CreateDirectory(Path.GetDirectoryName(to)!);
+        File.Copy(sample, from);
+        var (catalog, registrar, users) = Registrar();
+        var ct = TestContext.Current.CancellationToken;
+
+        var before = await registrar.RegisterAsync(new RegisterFileRequest(from, "download", AddToHistory: false, UserId: "a"), ct);
+        File.Move(from, to);
+        var after = await registrar.RegisterAsync(new RegisterFileRequest(to, "organize", AddToHistory: false, ReplacedLocalPath: from), ct);
+        Assert.Empty(users.UsersOf(before!.Path));
+        Assert.Equal(["Alice"], users.UsersOf(after!.Path).Select(u => u.Name));
+
+        // Un fichier arrivé sans propriétaire (disque USB, ajout à la main) revient à l'administrateur.
+        var extra = Path.Combine(_music, "Queen", "Other - Queen.mp3");
+        File.Copy(sample, extra);
+        var orphan = await registrar.RegisterAsync(new RegisterFileRequest(extra, "scan", AddToHistory: false), ct);
+        Assert.Equal(1, users.AdoptOrphans(catalog.Load().Select(e => e.Path)));
+        Assert.Equal(["Didier"], users.UsersOf(orphan!.Path).Select(u => u.Name));
+        Assert.Equal(0, users.AdoptOrphans(catalog.Load().Select(e => e.Path)));
     }
 
     [Fact]

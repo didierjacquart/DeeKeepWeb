@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useStore } from '../../../lib/store';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { connectivity } from '../../../core/offline/connectivity';
 import { qualityUpdates, watchQualityEntries } from '../quality-api';
 import { mergeEntries } from '../quality-model';

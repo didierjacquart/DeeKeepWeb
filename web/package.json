@@ -17,9 +17,6 @@
   "private": true,
   "packageManager": "npm@11.19.1",
   "dependencies": {
-    "@apollo/client": "^4.3.5",
-    "graphql": "^16.14.2",
-    "graphql-ws": "^6.4.1",
     "idb-keyval": "^6.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

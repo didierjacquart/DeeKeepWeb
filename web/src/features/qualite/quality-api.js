@@ -1,61 +1,29 @@
-import { gql } from '@apollo/client';
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
+import { endpoint, serverEvent } from '../../core/api/endpoints';
 
-const THRESHOLD_FIELDS =
-  'hissDb cracklePct clippingPct gapDensityPct durationExcess durationGap tailSeconds headSeconds deep';
-const ROW_FIELDS = `
-  uid path title artist album format bitrate duration referenceDuration referenceState score
-  defects { id label severity detail } cells tooltips error onDisk updatedAt status statusDetail redownloadJobId
-`;
+/** Toutes les lignes (titres sans défaut compris), totaux et seuils courants. */
+export const QUALITY_ENTRIES = endpoint(
+  'QualityEntries',
+  'qualityEntries',
+  'GET /api/quality/entries?includeClean=true&limit=20000',
+);
 
-export const QUALITY_ENTRIES = gql`
-  query QualityEntries {
-    qualityEntries(includeClean: true, limit: 20000) {
-      items { ${ROW_FIELDS} }
-      total flagged errors referencesPending folder
-      thresholds { ${THRESHOLD_FIELDS} }
-    }
-  }
-`;
-
-export const QUALITY_UPDATED = gql`subscription QualityUpdated { qualityUpdated { reason removed entries { ${ROW_FIELDS} } } }`;
-export const UPDATE_THRESHOLDS = gql`mutation UpdateQualityThresholds($thresholds: QualityThresholdsInput!) { updateQualityThresholds(thresholds: $thresholds) { ${THRESHOLD_FIELDS} } }`;
-export const START_SCAN = gql`
-  mutation StartQualityScan($folder: String, $deep: Boolean) {
-    startQualityScan(folder: $folder, deep: $deep) {
-      id
-    }
-  }
-`;
-export const REANALYZE = gql`
-  mutation Reanalyze($paths: [String!]!) {
-    reanalyze(paths: $paths) {
-      id
-    }
-  }
-`;
-export const REDOWNLOAD = gql`
-  mutation RedownloadQuality($paths: [String!]!) {
-    redownloadQuality(paths: $paths) {
-      requested
-      skipped
-      skippedPaths
-      jobs {
-        id
-      }
-    }
-  }
-`;
-export const SET_FOLDER = gql`
-  mutation SetQualityFolder($folder: String!) {
-    setQualityFolder(folder: $folder)
-  }
-`;
-export const CLEAR = gql`
-  mutation ClearQuality {
-    clearQuality
-  }
-`;
+export const QUALITY_UPDATED = serverEvent('QualityUpdated', 'qualityUpdated', 'quality.updated');
+export const UPDATE_THRESHOLDS = endpoint(
+  'UpdateQualityThresholds',
+  'updateQualityThresholds',
+  'PUT /api/quality/thresholds',
+  {
+    body: v => v.thresholds,
+  },
+);
+export const START_SCAN = endpoint('StartQualityScan', 'startQualityScan', 'POST /api/quality/scan');
+export const REANALYZE = endpoint('Reanalyze', 'reanalyze', 'POST /api/quality/reanalyze');
+export const REDOWNLOAD = endpoint('RedownloadQuality', 'redownloadQuality', 'POST /api/quality/redownload');
+export const SET_FOLDER = endpoint('SetQualityFolder', 'setQualityFolder', 'PUT /api/quality/folder', {
+  result: r => r?.folder,
+});
+export const CLEAR = endpoint('ClearQuality', 'clearQuality', 'POST /api/quality/entries/clear');
 
 /** Liste et seuils, lus « cache puis réseau » : la liste s'affiche hors ligne. */
 export const watchQualityEntries = () => api.watch(QUALITY_ENTRIES);

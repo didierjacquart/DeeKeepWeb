@@ -5,10 +5,11 @@ using DeeKeep.Common.Web;
 namespace DeeKeep.Gateway.Infrastructure;
 
 /// <summary>
-/// Rend rejouables les mutations envoyées par la file hors ligne du client :
-/// une requête GraphQL portant <c>X-Idempotency-Key</c> déjà traitée renvoie
-/// la réponse mémorisée au lieu d'être exécutée une seconde fois (une
-/// extraction relancée après une coupure ne doit pas produire deux fichiers).
+/// Rend rejouables les actions envoyées par la file hors ligne du client : une
+/// requête <c>/api</c> (POST, PUT, DELETE) portant <c>X-Idempotency-Key</c> déjà
+/// traitée avec succès renvoie la réponse mémorisée au lieu d'être exécutée une
+/// seconde fois (une extraction relancée après une coupure ne doit pas produire
+/// deux fichiers).
 /// </summary>
 public sealed class IdempotencyMiddleware(RequestDelegate next, WebDb webDb, ILogger<IdempotencyMiddleware> logger)
 {
@@ -19,7 +20,7 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, WebDb webDb, ILo
     public async Task InvokeAsync(HttpContext ctx)
     {
         var key = ctx.Request.Headers[Header].ToString();
-        if (string.IsNullOrEmpty(key) || key.Length > 128 || !HttpMethods.IsPost(ctx.Request.Method) || !ctx.Request.Path.StartsWithSegments("/graphql"))
+        if (string.IsNullOrEmpty(key) || key.Length > 128 || HttpMethods.IsGet(ctx.Request.Method) || !ctx.Request.Path.StartsWithSegments("/api"))
         {
             await next(ctx);
             return;
@@ -32,7 +33,7 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, WebDb webDb, ILo
         }
         if (stored is not null)
         {
-            ctx.Response.ContentType = "application/graphql-response+json; charset=utf-8";
+            ctx.Response.ContentType = "application/json; charset=utf-8";
             ctx.Response.Headers["X-Idempotent-Replay"] = "true";
             await ctx.Response.WriteAsync(stored);
             return;
@@ -46,8 +47,8 @@ public sealed class IdempotencyMiddleware(RequestDelegate next, WebDb webDb, ILo
             await next(ctx);
             buffer.Position = 0;
             var body = await new StreamReader(buffer).ReadToEndAsync();
-            // Une indisponibilité de service n'est pas mémorisée : le client doit pouvoir réessayer.
-            if (ctx.Response.StatusCode == 200 && !body.Contains("SERVICE_UNAVAILABLE", StringComparison.Ordinal))
+            // Seul un succès est mémorisé : après une erreur, le client doit pouvoir réessayer.
+            if (ctx.Response.StatusCode is >= 200 and < 300)
             {
                 try
                 {

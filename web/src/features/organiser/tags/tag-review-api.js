@@ -1,4 +1,4 @@
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { PROPOSALS, WRITE_TAGS } from '../organiser.queries';
 
 /** Propositions déjà reçues par une recherche de tags (gardées côté serveur). */

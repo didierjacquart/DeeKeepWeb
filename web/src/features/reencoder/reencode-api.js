@@ -1,45 +1,10 @@
-import { gql } from '@apollo/client';
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
+import { endpoint } from '../../core/api/endpoints';
 
-export const EXPORT = gql`
-  query ExportOptions {
-    exportOptions {
-      current {
-        format
-        quality
-      }
-    }
-  }
-`;
-
-export const SCAN = gql`
-  mutation ScanLocalFiles($paths: [String!]!) {
-    scanLocalFiles(paths: $paths) {
-      id
-    }
-  }
-`;
-
-export const MATCH = gql`
-  query BestMatch($artist: String!, $title: String!) {
-    bestMatch(artist: $artist, title: $title) {
-      id
-      title
-      artist
-      album
-      coverSmall
-      coverBig
-    }
-  }
-`;
-
-export const CONVERT = gql`
-  mutation EnqueueConversions($items: [ConvertItemInput!]!, $batchId: String) {
-    enqueueConversions(items: $items, batchId: $batchId) {
-      id
-    }
-  }
-`;
+export const EXPORT = endpoint('ExportOptions', 'exportOptions', 'GET /api/downloads/export-options');
+export const SCAN = endpoint('ScanLocalFiles', 'scanLocalFiles', 'POST /api/library/scan-files');
+export const MATCH = endpoint('BestMatch', 'bestMatch', 'GET /api/catalog/best-match');
+export const CONVERT = endpoint('EnqueueConversions', 'enqueueConversions', 'POST /api/downloads/conversions');
 
 /** Format et qualité cibles définis dans les Paramètres (null s'ils manquent). */
 export async function loadExportTarget() {

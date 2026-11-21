@@ -1,0 +1,33 @@
+.dk-administration-page {
+  .row {
+    grid-template-columns: minmax(0, 1.2fr) 120px minmax(0, 2fr) minmax(0, 1fr) 90px auto;
+  }
+  .name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 600;
+  }
+  .acts {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    overflow: visible;
+  }
+  @media (max-width: 899px) {
+    .row {
+      grid-template-columns: minmax(0, 1fr) auto auto;
+      row-gap: 8px;
+    }
+    .dk-thead {
+      display: none;
+    }
+    .acts {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      button {
+        min-height: 40px;
+      }
+    }
+  }
+}

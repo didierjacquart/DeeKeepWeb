@@ -1,13 +1,12 @@
 import { BehaviorSubject, Subject } from 'rxjs';
-import { getOperationAST } from 'graphql';
 import { vi } from 'vitest';
-import { api } from '../core/graphql/api';
+import { api } from '../core/api/api';
 
-/** Nom de l'opération GraphQL d'un document (`query Tracks …` → « Tracks »). */
-export const operationName = doc => getOperationAST(doc)?.name?.value ?? '?';
+/** Nom d'une opération déclarée avec `endpoint`, `combine` ou `serverEvent`. */
+export const operationName = op => op?.name ?? '?';
 
 /**
- * Remplace le serveur GraphQL pour un test : chaque opération est servie par son
+ * Remplace le serveur pour un test : chaque opération est servie par son
  * nom. Une réponse est une valeur, une fonction `(variables) => valeur` (éventuellement
  * asynchrone) ou une `Error` (requête en échec, mutation en erreur).
  *

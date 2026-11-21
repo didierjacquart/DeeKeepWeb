@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { notify } from '../../../core/ui/notify';
 import { SETTINGS_CHANGED, SETTINGS_Q, UPDATE } from '../settings-api';
 

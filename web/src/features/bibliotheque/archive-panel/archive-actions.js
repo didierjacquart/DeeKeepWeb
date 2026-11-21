@@ -1,5 +1,5 @@
 import { Store } from '../../../lib/store';
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { isActive, jobs } from '../../../core/jobs/jobs';
 import { notify } from '../../../core/ui/notify';
 import { confirm } from '../../../shared/dialog/confirm';

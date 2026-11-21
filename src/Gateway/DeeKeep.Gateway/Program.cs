@@ -1,32 +1,29 @@
 using DeeKeep.Common.Hosting;
 using DeeKeep.Contracts;
+using DeeKeep.Gateway.Api;
 using DeeKeep.Gateway.Infrastructure;
-using HotChocolate.AspNetCore;
-
-[assembly: HotChocolate.Module("GatewayTypes")]
 
 var builder = WebApplication.CreateBuilder(args);
 builder.AddDeeKeepService(ServiceNames.Gateway);
 builder.Services.AddSingleton<ServiceDirectory>();
+builder.Services.AddDeeKeepApi();
 builder.Services.AddEventRelay();
 builder.Services.AddDeeKeepAuth(builder.Configuration);
 builder.Services.AddDeeKeepProxy(builder.Configuration);
 builder.Services.AddResponseCompression(o => o.EnableForHttps = true);
 
-builder.Services.AddDeeKeepGraphQL(builder.Environment.IsDevelopment());
-
 var app = builder.Build();
 app.UseResponseCompression();
-app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseDeeKeepAuthGate();
+app.UseDeeKeepPermissions();
 app.UseMiddleware<IdempotencyMiddleware>();
 
-app.MapDeeKeepDefaults();
+app.MapDeeKeepDefaults(publicApi: true);
 app.MapAuthEndpoints();
-app.MapGraphQL();
+app.MapDeeKeepApi();
 app.MapReverseProxy();
 // Application monopage : toute autre route renvoie la coquille du client React.
 app.MapFallbackToFile("index.html");

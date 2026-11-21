@@ -1,10 +1,10 @@
 import { get, set, del } from 'idb-keyval';
 
-const KEY = 'dk-apollo-cache-v1';
+const KEY = 'dk-api-cache-v1';
 const MAX_BYTES = 25 * 1024 * 1024;
 
 /**
- * Persistance du cache GraphQL dans IndexedDB : à l'ouverture hors ligne,
+ * Persistance des dernières réponses du serveur dans IndexedDB : à l'ouverture hors ligne,
  * la bibliothèque, l'historique et les réglages s'affichent tels qu'ils
  * étaient lors de la dernière visite.
  */

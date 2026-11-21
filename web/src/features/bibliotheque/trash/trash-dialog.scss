@@ -1,0 +1,35 @@
+.trash-dialog {
+  .trash-table {
+    max-height: 55vh;
+    overflow-y: auto;
+  }
+
+  .trash-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 2fr) minmax(0, 2fr) 140px 90px 80px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .ellipsis {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 899px) {
+    .trash-row {
+      grid-template-columns: 32px minmax(0, 1fr) 90px;
+
+      > :nth-child(3),
+      > :nth-child(4),
+      > :nth-child(6) {
+        display: none;
+      }
+    }
+  }
+}
+
+.trash-total {
+  margin-right: auto;
+}

@@ -12,7 +12,7 @@ function seconds(value) {
   return num(value) ?? 0;
 }
 
-/** Piste de la recherche (ou ligne existante) → entrée GraphQL ; tolère les variantes de noms de champs. */
+/** Piste de la recherche (ou ligne existante) → corps JSON de l'API ; tolère les variantes de noms de champs. */
 export function toInput(t) {
   return {
     id: num(t['id']) ?? 0,

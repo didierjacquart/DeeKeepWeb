@@ -1,6 +1,11 @@
+import { usePermissions } from '../../../core/auth/usePermissions';
+
+const NO_DOWNLOAD = "Vous n'avez pas le droit de télécharger";
+
 /**
  * Barre d'actions de la file : manipulation de la liste à gauche, « Rechercher »
- * (accent) puis « Extraire » (principal) en dernier.
+ * (accent) puis « Extraire » (principal) en dernier. Sans le droit de télécharger, les
+ * actions sur la file sont désactivées (le serveur les refuserait).
  */
 export function QueueActions({
   hasSelection,
@@ -13,6 +18,7 @@ export function QueueActions({
   onSearch,
   onExtract,
 }) {
+  const { canDownload } = usePermissions();
   return (
     <div className="dk-actions">
       <button className="control-btn" onClick={() => onSelectAll(true)}>
@@ -23,9 +29,13 @@ export function QueueActions({
       </button>
       <button
         className="control-btn"
-        disabled={!hasSelection}
+        disabled={!hasSelection || !canDownload}
         onClick={onRemoveSelection}
-        data-tip="Retirer de la liste les lignes cochées (les fichiers déjà extraits sont conservés sur le disque)"
+        data-tip={
+          canDownload
+            ? 'Retirer de la liste les lignes cochées (les fichiers déjà extraits sont conservés sur le disque)'
+            : NO_DOWNLOAD
+        }
       >
         Retirer la sélection
       </button>
@@ -33,15 +43,16 @@ export function QueueActions({
       <button
         className="control-btn"
         onClick={onPurge}
-        data-tip="Retirer de la liste toutes les lignes téléchargées avec succès"
+        disabled={!canDownload}
+        data-tip={canDownload ? 'Retirer de la liste toutes les lignes téléchargées avec succès' : NO_DOWNLOAD}
       >
         Purger les téléchargés
       </button>
       <button
         className="control-btn"
-        disabled={!canRetry}
+        disabled={!canRetry || !canDownload}
         onClick={onRetry}
-        data-tip="Relancer les téléchargements en échec"
+        data-tip={canDownload ? 'Relancer les téléchargements en échec' : NO_DOWNLOAD}
       >
         Réessayer
       </button>
@@ -50,9 +61,15 @@ export function QueueActions({
       </button>
       <button
         className="primary-btn"
-        disabled={!canExtract}
+        disabled={!canExtract || !canDownload}
         onClick={onExtract}
-        data-tip={hasSelection ? 'Télécharger les titres cochés' : 'Télécharger tous les titres de la liste'}
+        data-tip={
+          !canDownload
+            ? NO_DOWNLOAD
+            : hasSelection
+              ? 'Télécharger les titres cochés'
+              : 'Télécharger tous les titres de la liste'
+        }
       >
         Extraire
       </button>

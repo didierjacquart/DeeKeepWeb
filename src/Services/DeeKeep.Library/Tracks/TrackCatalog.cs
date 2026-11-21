@@ -1,6 +1,7 @@
 using DeeKeep.Common.Data;
 using DeeKeep.Contracts.Library;
 using DeeKeep.Library.Files;
+using DeeKeep.Library.Users;
 
 namespace DeeKeep.Library.Tracks;
 
@@ -8,7 +9,7 @@ namespace DeeKeep.Library.Tracks;
 /// Lecture de la bibliothèque : lignes vivantes de <c>tracks</c>, état sur le disque, état
 /// d'archive lu dans la table <c>archive</c> (jointure exacte par chemin, comme l'original).
 /// </summary>
-public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCache disk, BitrateBackfill backfill)
+public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCache disk, BitrateBackfill backfill, UserTracks users)
 {
     /// <summary>Toutes les entrées, dans l'ordre de la table (ordre de départ du tri stable).</summary>
     public List<LibraryEntry> Load()
@@ -47,14 +48,20 @@ public sealed class TrackCatalog(DeeKeepDb db, LibraryPaths paths, DiskStateCach
         var all = Load();
         var tokens = TrackSearch.Tokens(query.Search);
         var folderKey = string.IsNullOrWhiteSpace(query.Folder) ? null : LibraryPaths.Key(query.Folder).TrimEnd('\\') + "\\";
+        // Bibliothèque personnelle : les seuls titres de l'utilisateur.
+        var mine = string.IsNullOrEmpty(query.UserId) ? null : users.KeysOf(query.UserId);
         var filtered = all.Where(e =>
-            e.Selectable(query.IncludeMissing)
+            (mine is null || mine.Contains(LibraryPaths.Key(e.Path)))
+            && e.Selectable(query.IncludeMissing)
             && (!query.HistoryOnly || e.InHistory)
             && (folderKey is null || LibraryPaths.Key(e.Path).StartsWith(folderKey, StringComparison.Ordinal))
             && (tokens.Count == 0 || TrackSearch.Matches(TrackSearch.Haystack(e), tokens)));
         var sorted = TrackSearch.Sort(filtered, query.SortBy, query.Descending).ToList();
         var limit = query.Limit <= 0 ? sorted.Count : query.Limit;
-        var page = sorted.Skip(Math.Max(0, query.Offset)).Take(limit).Select(e => e.ToDto()).ToList();
+        var names = query.IncludeUsers ? users.NamesByKey() : null;
+        var page = sorted.Skip(Math.Max(0, query.Offset)).Take(limit)
+            .Select(e => names is null ? e.ToDto() : e.ToDto() with { Users = names.GetValueOrDefault(LibraryPaths.Key(e.Path)) ?? [] })
+            .ToList();
         return new TrackPage(page, sorted.Count, all.Count(e => e.Exists), all.Count(e => !e.Exists));
     }
 

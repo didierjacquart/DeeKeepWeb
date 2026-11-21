@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using System.Text;
 using System.Text.Json;
 using DeeKeep.Contracts;
@@ -17,9 +18,12 @@ public static class EventStreamEndpoint
     /// </summary>
     public static IEndpointRouteBuilder MapEventStream(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/internal/events", async (HttpContext http, EventLog log, long? after) =>
+        app.MapGet("/internal/events", async (HttpContext http, EventLog log, IHostApplicationLifetime lifetime, long? after) =>
         {
-            var ct = http.RequestAborted;
+            // Le flux se ferme aussi à l'arrêt du service : sinon l'hôte attendrait qu'un abonné
+            // (autre service resté en marche) se déconnecte, et systemd finirait par le tuer.
+            using var stop = CancellationTokenSource.CreateLinkedTokenSource(http.RequestAborted, lifetime.ApplicationStopping);
+            var ct = stop.Token;
             http.Response.Headers.ContentType = "text/event-stream";
             http.Response.Headers.CacheControl = "no-cache";
             http.Response.Headers["X-Accel-Buffering"] = "no";

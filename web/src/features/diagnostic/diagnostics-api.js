@@ -1,38 +1,10 @@
-import { gql } from '@apollo/client';
-import { JOB_FIELDS } from '../../core/jobs/jobs';
+import { combine, endpoint } from '../../core/api/endpoints';
 
-export const SERVICES_Q = gql`
-  query Services {
-    services {
-      service
-      reachable
-      error
-      eventsConnected
-      info {
-        service
-        version
-        startedAt
-        workingSetBytes
-        managedHeapBytes
-        activeJobs
-        outboxPending
-        links {
-          producer
-          connected
-          since
-          lastError
-        }
-        tools {
-          name
-          available
-          version
-          path
-          detail
-        }
-      }
-    }
-    settings
-  }
-`;
+/** État des services et réglages (versions d'outils, dossier de dépôt…). */
+export const SERVICES_Q = combine(
+  'Services',
+  endpoint('Services', 'services', 'GET /api/services'),
+  endpoint('Settings', 'settings', 'GET /api/settings'),
+);
 
-export const UPDATE_YTDLP = gql`mutation UpdateYtDlp { updateYtDlp { ${JOB_FIELDS} } }`;
+export const UPDATE_YTDLP = endpoint('UpdateYtDlp', 'updateYtDlp', 'POST /api/downloads/tools/update-ytdlp');

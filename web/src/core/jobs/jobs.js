@@ -1,7 +1,6 @@
-import { gql } from '@apollo/client';
-
 import { Store } from '../../lib/store';
-import { api } from '../graphql/api';
+import { api } from '../api/api';
+import { endpoint, serverEvent } from '../api/endpoints';
 import { connectivity } from '../offline/connectivity';
 
 /**
@@ -38,27 +37,17 @@ import { connectivity } from '../offline/connectivity';
  * @property {unknown} data
  */
 
-export const JOB_FIELDS = `
-  id service type title status progress done failed total message error attempts groupKey result
-  createdAt updatedAt startedAt finishedAt
-`;
-
-const JOBS_QUERY = gql`query Jobs($activeOnly: Boolean!) { jobs(activeOnly: $activeOnly) { ${JOB_FIELDS} } }`;
-const JOB_UPDATED = gql`subscription JobUpdated { jobUpdated { ${JOB_FIELDS} } }`;
-const JOB_ITEM = gql`
-  subscription JobItem($jobId: UUID, $type: String) {
-    jobItem(jobId: $jobId, type: $type) {
-      jobId
-      type
-      itemKey
-      status
-      message
-      data
-    }
-  }
-`;
-const CANCEL = gql`mutation CancelJob($service: String!, $id: UUID!) { cancelJob(service: $service, id: $id) { ${JOB_FIELDS} } }`;
-const RETRY = gql`mutation RetryJob($service: String!, $id: UUID!) { retryJob(service: $service, id: $id) { ${JOB_FIELDS} } }`;
+const JOBS_QUERY = endpoint('Jobs', 'jobs', 'GET /api/jobs');
+const JOB_UPDATED = serverEvent('JobUpdated', 'jobUpdated', 'job.updated');
+/** Variables : `jobId`, `type` (filtres facultatifs). */
+const JOB_ITEM = serverEvent(
+  'JobItem',
+  'jobItem',
+  'job.item',
+  (item, vars) => (!vars.jobId || item.jobId === vars.jobId) && (!vars.type || item.type === vars.type),
+);
+const CANCEL = endpoint('CancelJob', 'cancelJob', 'POST /api/jobs/{service}/{id}/cancel');
+const RETRY = endpoint('RetryJob', 'retryJob', 'POST /api/jobs/{service}/{id}/retry');
 
 export const isActive = j => j.status === 'QUEUED' || j.status === 'RUNNING';
 
@@ -69,7 +58,7 @@ function derive(byId) {
 
 /**
  * Vue unique des tâches de fond de tous les services : téléchargements,
- * analyses, rangements, archivages… Alimentée par l'abonnement jobUpdated,
+ * analyses, rangements, archivages… Alimentée par l'événement job.updated,
  * recalée par une requête à chaque reconnexion (rien n'est perdu pendant une
  * coupure : les tâches continuent sur le serveur).
  */

@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import { useStore } from '../../../../lib/store';
 import { useLatest } from '../../../../lib/hooks/useLatest';
 import { useSubscription } from '../../../../lib/hooks/useSubscription';
-import { api } from '../../../../core/graphql/api';
+import { api } from '../../../../core/api/api';
 import { connectivity } from '../../../../core/offline/connectivity';
 import { archiveActions } from '../archive-actions';
 import { ARCHIVE_UPDATED, ARCHIVE_USAGE } from '../archive-api';

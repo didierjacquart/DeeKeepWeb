@@ -26,6 +26,13 @@ describe('garde des pages', () => {
     expect(router.state.location.pathname).toBe('/setup');
   });
 
+  it('renvoie une page refusée au compte vers sa première page permise', async () => {
+    mockApi({ Jobs: { jobs: [] }, QualityEntries: new Error('hors test') });
+    auth.setState({ session: session({ authenticated: true, user: 'invite', role: 'user', pages: ['qualite'] }) });
+    const { router } = renderRoutes(routes, '/organiser');
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/qualite'));
+  });
+
   it('renvoie une adresse inconnue vers l’accueil', async () => {
     auth.setState({ session: session() });
     const { router } = renderRoutes(routes, '/nimporte');
@@ -43,11 +50,25 @@ describe('LoginPage', () => {
       path: '/login',
       extraRoutes: [{ path: '/', element: <p>Accueil</p> }],
     });
-    expect(screen.getByLabelText('Mot de passe')).toHaveFocus();
+    expect(screen.getByLabelText("Nom d'utilisateur")).toHaveFocus();
     await user.type(screen.getByLabelText('Mot de passe'), 'secret');
     await user.click(screen.getByRole('button', { name: 'Se connecter' }));
-    expect(login).toHaveBeenCalledWith('secret');
+    // Nom laissé vide : le serveur prend le compte « deekeep » (installations antérieures).
+    expect(login).toHaveBeenCalledWith('secret', undefined);
     expect(router.state.location.pathname).toBe('/');
+  });
+
+  it('se connecte sous un nom d’utilisateur', async () => {
+    const login = vi.spyOn(auth, 'login').mockResolvedValue(null);
+    const { user } = renderWithRouter(<LoginPage />, {
+      route: '/login',
+      path: '/login',
+      extraRoutes: [{ path: '/', element: <p>Accueil</p> }],
+    });
+    await user.type(screen.getByLabelText("Nom d'utilisateur"), ' invite ');
+    await user.type(screen.getByLabelText('Mot de passe'), 'secret');
+    await user.keyboard('{Enter}');
+    expect(login).toHaveBeenCalledWith('secret', 'invite');
   });
 
   it('affiche le refus du serveur', async () => {

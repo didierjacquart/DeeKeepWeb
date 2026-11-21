@@ -72,11 +72,12 @@ public abstract class ExtractionJobBase(
         return outcome;
     }
 
-    protected void Register(string localPath, string origin, bool addToHistory, string? replacedLocal, TrackInfo track)
+    /// <summary><paramref name="userId"/> : qui a demandé le téléchargement (le titre rejoint sa bibliothèque).</summary>
+    protected void Register(string localPath, string origin, bool addToHistory, string? replacedLocal, TrackInfo track, string? userId = null)
     {
         outbox.Enqueue(ServiceNames.Library, HttpMethod.Post, "/api/files/register",
             new RegisterFileRequest(localPath, origin, addToHistory, replacedLocal, track.DeezerId, track.CoverUrl,
-                addToHistory && track.Cover is { Length: > 0 } c ? Convert.ToBase64String(c) : null));
+                addToHistory && track.Cover is { Length: > 0 } c ? Convert.ToBase64String(c) : null, userId));
     }
 
     protected void Publish(string type, FileProducedEvent evt) => events.Publish(type, evt, evt.Path);
@@ -137,7 +138,7 @@ public sealed class DownloadJobHandler(
             Progress = report,
         }, ct);
 
-        Register(outcome.Path!, DownloaderJobTypes.Download, addToHistory: true, null, track);
+        Register(outcome.Path!, DownloaderJobTypes.Download, addToHistory: true, null, track, payload.UserId);
         Publish(EventTypes.FileProduced, new FileProducedEvent(PathMap.ToDb(outcome.Path!), DownloaderJobTypes.Download, null, context.Id));
         return Result(outcome, track, format, export.Quality);
     }

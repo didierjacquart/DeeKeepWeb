@@ -72,7 +72,7 @@ public static class DownloaderService
                 logs.CreateLogger("Downloads").LogWarning("Réservation du lot impossible : {Error}", ex.Message);
             }
             var created = request.Tracks.Select(t => jobs.Enqueue(new EnqueueJobRequest(DownloaderJobTypes.Download, $"{t.Artist} - {t.Title}",
-                Node(new DownloadJobPayload(t, request.Options, batch)), 0, batch, MaxAttempts: 5))).ToList();
+                Node(new DownloadJobPayload(t, request.Options, batch, request.UserId)), 0, batch, MaxAttempts: 5))).ToList();
             if (request.PendingIds is { Count: > 0 }) store.RemovePending(request.PendingIds);
             return created;
         });

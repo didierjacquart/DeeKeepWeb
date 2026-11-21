@@ -1,40 +1,20 @@
-import { gql } from '@apollo/client';
+import { endpoint, serverEvent } from '../../core/api/endpoints';
 
-/** Titre de la bibliothèque tel que le serveur le décrit (état disque et archive compris). */
+/**
+ * Toute la bibliothèque visible (limite 0 = sans limite) : filtre et tri se font sur le client, depuis le cache.
+ * Un utilisateur reçoit ses titres ; l'administrateur tous (ou ceux de `userId`), avec leurs utilisateurs.
+ */
+export const TRACKS_QUERY = endpoint('LibraryTracks', 'tracks', 'POST /api/library/tracks/query', {
+  body: v => ({ includeMissing: true, limit: 0, userId: v?.userId ?? null }),
+});
 
-export const TRACK_FIELDS = `
-  path title artist album albumArtist genre year duration bitrate codec ext fileSize coverSha1 inHistory onDisk
-  archiveState archiveBytes archiveSourceBytes format
-`;
+/** Administrateur : nombre de titres de chaque utilisateur (filtre « Titres de »). */
+export const USER_COUNTS = endpoint('UserCounts', 'userCounts', 'GET /api/library/user-counts');
+/** Administrateur : utilisateurs d'un titre (variables : `path`). */
+export const TRACK_USERS = endpoint('TrackUsers', 'trackUsers', 'GET /api/library/track-users');
+/** Administrateur : retire des titres de la bibliothèque d'un utilisateur (fichiers intacts). */
+export const UNLINK_USER = endpoint('UnlinkUser', 'unlink', 'POST /api/library/user-tracks/unlink');
 
-/** Toute la bibliothèque (limite 0 = sans limite) : filtre et tri se font sur le client, depuis le cache. */
-export const TRACKS_QUERY = gql`
-  query LibraryTracks {
-    tracks(query: { includeMissing: true, limit: 0 }) { total totalOnDisk totalMissing items { ${TRACK_FIELDS} } }
-  }
-`;
-
-export const TRACKS_CHANGED = gql`
-  subscription LibraryTracksChanged {
-    tracksChanged {
-      paths
-      reason
-    }
-  }
-`;
-export const TRACKS_REMOVED = gql`
-  subscription LibraryTracksRemoved {
-    tracksRemoved {
-      paths
-      reason
-    }
-  }
-`;
-export const ARCHIVE_CHANGED = gql`
-  subscription LibraryArchiveChanged {
-    archiveUpdated {
-      paths
-      reason
-    }
-  }
-`;
+export const TRACKS_CHANGED = serverEvent('LibraryTracksChanged', 'tracksChanged', 'tracks.changed');
+export const TRACKS_REMOVED = serverEvent('LibraryTracksRemoved', 'tracksRemoved', 'tracks.removed');
+export const ARCHIVE_CHANGED = serverEvent('LibraryArchiveChanged', 'archiveUpdated', 'archive.updated');

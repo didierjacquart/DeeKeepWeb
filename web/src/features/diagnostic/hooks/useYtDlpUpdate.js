@@ -1,4 +1,4 @@
-import { api } from '../../../core/graphql/api';
+import { api } from '../../../core/api/api';
 import { isActive, jobs } from '../../../core/jobs/jobs';
 import { useJobsByType } from '../../../core/jobs/useJobs';
 import { notify } from '../../../core/ui/notify';

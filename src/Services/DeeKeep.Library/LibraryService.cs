@@ -8,9 +8,12 @@ using DeeKeep.Common.Jobs;
 using DeeKeep.Common.Audio;
 using DeeKeep.Common.Text;
 using DeeKeep.Common.Files;
+using DeeKeep.Common.Events;
 using DeeKeep.Contracts;
+using DeeKeep.Contracts.Sync;
 using DeeKeep.Contracts.Library;
 using DeeKeep.Library.Files;
+using DeeKeep.Library.Users;
 using DeeKeep.Library.History;
 using DeeKeep.Library.Presence;
 using DeeKeep.Library.Rules;
@@ -77,6 +80,10 @@ public static class LibraryService
         services.AddSingleton<PresenceService>();
         services.AddHostedService(sp => sp.GetRequiredService<PresenceService>());
         services.AddSingleton<FileRegistrar>();
+        services.AddSingleton<TrashService>();
+        services.AddSingleton<UserTracks>();
+        services.AddHostedService<OrphanAdopter>();
+        services.AddHostedService<TrashPurger>();
         services.AddSingleton<FsService>();
         services.AddSingleton<BatchTallies>();
         services.AddSingleton<IToolStatusProvider, DatabaseToolStatus>();
@@ -137,6 +144,48 @@ public static class LibraryService
         // Fichiers.
         api.MapPost("/files/register", async (FileRegistrar f, RegisterFileRequest r, CancellationToken ct) => Results.Ok(await f.RegisterAsync(r, ct)));
         api.MapPost("/files/delete", async (FileRegistrar f, DeleteFilesRequest r, CancellationToken ct) => await f.DeleteAsync(r, ct));
+        // Corbeille : fichiers supprimés depuis l'application, récupérables le temps réglé (0 = sans limite).
+        api.MapGet("/trash", (TrashService t) => t.List());
+        // Bibliothèques personnelles (lien utilisateur / titre).
+        api.MapGet("/user-tracks/users", (UserTracks u, string path) => u.UsersOf(path));
+        api.MapGet("/user-tracks/counts", (UserTracks u) => u.Counts());
+        api.MapPost("/user-tracks/link", (UserTracks u, EventLog events, UserTracksRequest r) =>
+        {
+            var n = u.Link(r.UserId, r.Paths, r.Origin);
+            events.Publish(EventTypes.TracksChanged, new TracksChangedEvent(r.Paths, "linked"));
+            return n;
+        });
+        // « Extraire » : pistes déjà présentes (✓) associées sans téléchargement, pistes déjà en cours attendues.
+        api.MapPost("/user-tracks/claim", (UserTracks u, PresenceService presence, EventLog events, ClaimRequest r) =>
+        {
+            var claimed = new List<string>();
+            var linked = new List<string>();
+            var verdicts = presence.Lookup(r.Items.Select(i => new PresenceQuery(i.Key, i.Title, i.Artist, i.Album)).ToList());
+            foreach (var v in verdicts.Where(v => v.State == PresenceState.Present && v.Files.Count > 0))
+            {
+                var file = v.Files[0].Path;
+                u.Link(r.UserId, [file], "download");
+                claimed.Add(v.Key);
+                linked.Add(file);
+            }
+            if (r.ExpectDeezerIds is { Count: > 0 } expected) u.Expect(r.UserId, expected);
+            if (linked.Count > 0) events.Publish(EventTypes.TracksChanged, new TracksChangedEvent(linked, "linked"));
+            return new ClaimResult(claimed);
+        });
+        api.MapPost("/user-tracks/unlink", (UserTracks u, EventLog events, UserTracksRequest r) =>
+        {
+            var n = u.Unlink(r.UserId, r.Paths);
+            events.Publish(EventTypes.TracksChanged, new TracksChangedEvent(r.Paths, "unlinked"));
+            return n;
+        });
+        api.MapGet("/trash/settings", (TrashService t) => t.Settings());
+        api.MapPut("/trash/settings", (TrashService t, TrashSettings s) =>
+        {
+            try { return Results.Ok(t.SaveSettings(s)); }
+            catch (ArgumentException ex) { return Results.BadRequest(ex.Message); }
+        });
+        api.MapPost("/trash/restore", async (TrashService t, TrashRestoreRequest r, CancellationToken ct) => await t.RestoreAsync(r.Ids, r.UserId, ct));
+        api.MapPost("/trash/purge", (TrashService t, TrashRestoreRequest r) => t.Purge(r.Ids));
         api.MapGet("/files/info", (FsService fs, string path) => fs.Info(path) is { } i ? Results.Ok(i) : Results.NotFound());
         api.MapGet("/fs/list", (FsService fs, string? path, bool? audioOnly) =>
         {

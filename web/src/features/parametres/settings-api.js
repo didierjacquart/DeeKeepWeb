@@ -1,40 +1,17 @@
-import { gql } from '@apollo/client';
-import { JOB_FIELDS } from '../../core/jobs/jobs';
+import { combine, endpoint, serverEvent } from '../../core/api/endpoints';
 
-export const SETTINGS_Q = gql`
-  query Settings {
-    settings
-    databaseInfo {
-      path
-      sizeBytes
-      tables {
-        table
-        rows
-        deleted
-      }
-      historyCount
-      coverBytes
-      downloadDir
-      localDownloadDir
-      presenceReady
-      presenceFiles
-      desktopDataDir
-    }
-  }
-`;
+/** Réglages (objet JSON) et informations sur la base. */
+export const SETTINGS_Q = combine(
+  'Settings',
+  endpoint('Settings', 'settings', 'GET /api/settings'),
+  endpoint('Settings', 'databaseInfo', 'GET /api/library/database'),
+);
 
-export const UPDATE = gql`
-  mutation UpdateSettings($values: Any!) {
-    updateSettings(values: $values)
-  }
-`;
+/** Variables : `values` (réglages à enregistrer) ; rend les réglages complets. */
+export const UPDATE = endpoint('UpdateSettings', 'updateSettings', 'PUT /api/settings', { body: v => v.values });
 
-export const RESCAN = gql`mutation RescanLibrary { rescanLibrary { ${JOB_FIELDS} } }`;
+export const RESCAN = endpoint('RescanLibrary', 'rescanLibrary', 'POST /api/library/rescan');
 
-export const IMPORT = gql`mutation ImportDesktopData($dataDir: String) { importDesktopData(dataDir: $dataDir) { ${JOB_FIELDS} } }`;
+export const IMPORT = endpoint('ImportDesktopData', 'importDesktopData', 'POST /api/library/import-desktop');
 
-export const SETTINGS_CHANGED = gql`
-  subscription SettingsChanged {
-    settingsChanged
-  }
-`;
+export const SETTINGS_CHANGED = serverEvent('SettingsChanged', 'settingsChanged', 'settings.changed');

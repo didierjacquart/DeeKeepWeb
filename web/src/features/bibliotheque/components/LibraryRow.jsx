@@ -1,7 +1,7 @@
 import { cx } from '../../../lib/cx';
 import { formatDuration } from '../../../shared/format';
 import { groupLabel } from '../listen-groups';
-import { cloudText, cloudTip, playTip, playable } from '../track-info';
+import { cloudText, cloudTip, playTip, playable, titleTip } from '../track-info';
 
 /**
  * Cellule Artiste ou Album : le nom, et un ▶ (visible au survol de la ligne, toujours sur écran
@@ -62,7 +62,7 @@ export function LibraryRow({ track: t, checked, onToggle, onPlay, onPlayGroup, o
       >
         {cloudText(t)}
       </span>
-      <span className="title" data-tip={t.title || undefined}>
+      <span className="title" data-tip={titleTip(t)}>
         {t.title || '(sans titre)'}
         <span className="dk-cell-sub dk-hide-desktop">
           {t.artist}

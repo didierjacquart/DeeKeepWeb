@@ -8,23 +8,23 @@ reprises ; la spécification détaillée de chacune est dans `docs/analyse/`.
 
 | Contrainte | Réponse |
 |---|---|
-| GraphQL | Passerelle **HotChocolate** : un seul schéma (requêtes, mutations, abonnements) pour le client |
+| API | Passerelle **REST** : routes JSON `/api/...` par domaine, événements poussés par un flux **SSE** (`/api/events`) |
 | React | SPA React 19 (composants fonctions, hooks, Vite), **PWA** installable sur mobile et ordinateur |
 | Microservices .NET | 5 services métier + 1 passerelle, .NET 10, API minimales internes |
 | Base SQLite existante | `deekeep_cache.db` conservée **telle quelle** : même schéma, même empreinte `h` — l'application desktop peut toujours la rouvrir. Turso n'étant plus utilisé, la synchronisation en ligne n'est pas reprise et `sync_outbox` n'est plus alimentée |
 | Serveur Linux ARM64 peu puissant | systemd natif, pas de conteneurs, pas de courtier de messages, GC poste de travail, limites mémoire, parallélisme borné, publication ReadyToRun |
 | Résilience | Polly (réessais, disjoncteur, délais) sur tous les appels sortants, tâches durables reprises au redémarrage, boîte d'envoi inter-services, sondes de santé, redémarrage systemd |
-| Déconnexion | Cache GraphQL persistant (IndexedDB), file de mutations hors ligne rejouée à la reconnexion (idempotente), service worker, abonnements qui se reconnectent et resynchronisent, écoute hors ligne des titres épinglés |
-| Asynchronisme | Toute opération longue est une **tâche** serveur (file durable, progression poussée par abonnement GraphQL, annulable) ; le client ne bloque jamais |
+| Déconnexion | Dernières réponses persistées (IndexedDB), file d'actions hors ligne rejouée à la reconnexion (idempotente), service worker, flux d'événements qui se reconnecte et resynchronisent, écoute hors ligne des titres épinglés |
+| Asynchronisme | Toute opération longue est une **tâche** serveur (file durable, progression poussée par le flux d'événements, annulable) ; le client ne bloque jamais |
 
 ## Vue d'ensemble
 
 ```
  Navigateur / mobile (PWA React)
-   │  HTTPS : /graphql (requêtes, mutations) · WebSocket graphql-ws (abonnements)
+   │  HTTPS : /api/* (JSON : lectures, actions) · /api/events (SSE : événements)
    │          /media/* (flux audio, Range ; jaquette du fichier) · /covers/* (jaquettes)
    ▼
- Caddy (TLS, compression)  ──►  Gateway :5000  (HotChocolate + YARP + fichiers React + auth)
+ Caddy (TLS, compression)  ──►  Gateway :5000  (API REST + SSE + YARP + fichiers React + auth)
                                    │  HTTP interne 127.0.0.1 (+ clé X-Internal-Key)
                                    │  SSE /internal/events (événements, reprise Last-Event-ID)
      ┌───────────────┬─────────────┼───────────────┬──────────────────┐
@@ -87,7 +87,7 @@ SQLite est partagée entre processus d'une même machine : WAL,
   configuration : 2 téléchargements, 1 analyse qualité sur un Raspberry Pi).
 - La progression part en **événements** (`job.progress`, `job.item`,
   `library.changed`, `track.updated`, `archive.updated`…) dans le journal du service,
-  exposé en SSE ; la passerelle les relaie en abonnements GraphQL.
+  exposé en SSE ; la passerelle les relaie aux navigateurs par `/api/events`.
 - Une tâche par lot (analyse de 3 000 fichiers) écrit ses résultats au fil de
   l'eau dans la base : le client les voit apparaître sans attendre la fin, comme
   dans l'original, et **Arrêter** n'en perd aucun.
@@ -102,18 +102,18 @@ SQLite est partagée entre processus d'une même machine : WAL,
   bord qui *doivent* aboutir (enregistrer un fichier extrait, invalider une
   mesure) via la **boîte d'envoi** durable, rejouée jusqu'au succès.
 - Passerelle dégradée : un service indisponible ne fait tomber que ses champs
-  (erreurs GraphQL partielles), le reste du schéma répond.
+  (503 `SERVICE_UNAVAILABLE` sur ses routes), le reste de l'API répond.
 - systemd : `Restart=always`, `WatchdogSec`, `MemoryMax`, ordre de démarrage.
 - Santé : `/health/live`, `/health/ready` sur chaque service, agrégés par la
   passerelle dans la page **Diagnostic**.
 
 ## Déconnexion (client)
 
-- `apollo3-cache-persist` → IndexedDB : la bibliothèque s'affiche hors ligne.
-- Lien Apollo « hors ligne » : une mutation émise sans réseau est mise en file
+- Dernières réponses du serveur persistées dans IndexedDB : la bibliothèque s'affiche hors ligne.
+- File hors ligne : une action émise sans réseau est mise en file
   (IndexedDB) avec un `clientMutationId` ; la passerelle la rend idempotente
   (table `idempotency`), la file est rejouée à la reconnexion.
-- `graphql-ws` : reconnexion exponentielle infinie ; à chaque reconnexion, les
+- Flux SSE `/api/events` : reconnexion automatique infinie ; à chaque reconnexion, les
   requêtes actives sont rafraîchies (rattrapage des événements manqués) et les
   tâches en cours resouscrites.
 - Service worker (Workbox) : coquille, jaquettes (cache LRU), **titres épinglés
@@ -123,8 +123,23 @@ SQLite est partagée entre processus d'une même machine : WAL,
 
 ## Sécurité
 
-Application mono-utilisateur exposée sur le réseau : connexion par mot de passe
-(haché PBKDF2 dans `deekeep_web.db`), cookie HttpOnly + jeton pour le WebSocket.
+Application exposée sur le réseau : comptes nommés (table `users` de
+`deekeep_web.db`, mots de passe hachés PBKDF2), cookie HttpOnly (aussi pour le
+flux d'événements) revalidé à chaque requête contre la base (cache de 5 s) : un
+compte supprimé, désactivé ou recréé perd aussitôt ses sessions.
+
+Rôles et droits : un **administrateur** voit tout et gère les comptes (page
+Administration, `/api/admin/...`) ; un **utilisateur** ne voit que les pages
+cochées pour lui et n'a que les droits d'action donnés (**télécharger**,
+**supprimer**). La passerelle applique ces droits après l'authentification
+(`UseDeeKeepPermissions`) selon une table unique de règles préfixe + méthode →
+page, droit ou administrateur (`Gateway/Api/Permissions.cs`, la première règle
+qui correspond s'applique ; route sans règle : tout compte connecté). Refus :
+403 `{ error, code: "FORBIDDEN" }`. Les flux binaires (`/media`, `/covers`…)
+restent ouverts à tout compte connecté. Le client masque pages et boutons
+refusés (`core/auth/permissions.js`) mais n'est pas la protection. Toute
+nouvelle route sensible s'ajoute à la table. Authentification désactivée
+(configuration de développement) : tout est permis.
 Les services n'écoutent que sur `127.0.0.1` et exigent l'en-tête
 `X-Internal-Key`. Les secrets (S3, AcoustID, ARL) restent hors de la base
 synchronisée, dans `/etc/deekeep/secrets.json` ou des variables d'environnement.

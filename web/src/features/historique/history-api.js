@@ -1,81 +1,16 @@
-import { gql } from '@apollo/client';
+import { combine, endpoint, serverEvent } from '../../core/api/endpoints';
 
-export const HISTORY_Q = gql`
-  query History {
-    history {
-      path
-      title
-      artist
-      album
-      coverSha1
-      position
-      onDisk
-      downloadedAt
-    }
-    searchHistory {
-      query
-      position
-    }
-  }
-`;
+/** Historique des téléchargements et des recherches. */
+export const HISTORY_Q = combine(
+  'History',
+  endpoint('History', 'history', 'GET /api/library/history'),
+  endpoint('History', 'searchHistory', 'GET /api/catalog/searches'),
+);
 
-export const SEARCH_COVER = gql`
-  query SearchCover($query: String!) {
-    searchCover(query: $query) {
-      query
-      url
-    }
-  }
-`;
-
-export const PURGE = gql`
-  mutation PurgeMissingHistory {
-    purgeMissingHistory {
-      removed
-      message
-    }
-  }
-`;
-
-export const CLEAR = gql`
-  mutation ClearHistory {
-    clearHistory {
-      removed
-      message
-    }
-  }
-`;
-
-export const DELETE_SEARCH = gql`
-  mutation DeleteSearch($query: String!) {
-    deleteSearch(query: $query) {
-      query
-      position
-    }
-  }
-`;
-
-export const CLEAR_SEARCHES = gql`
-  mutation ClearSearches {
-    clearSearches {
-      query
-      position
-    }
-  }
-`;
-
-export const ADD_PENDING = gql`
-  mutation AddPending($tracks: [DownloadTrackInput!]!) {
-    addPendingDownloads(tracks: $tracks) {
-      id
-    }
-  }
-`;
-
-export const HISTORY_CHANGED = gql`
-  subscription HistoryChanged {
-    historyChanged {
-      paths
-    }
-  }
-`;
+export const SEARCH_COVER = endpoint('SearchCover', 'searchCover', 'GET /api/catalog/search-cover');
+export const PURGE = endpoint('PurgeMissingHistory', 'purgeMissingHistory', 'POST /api/library/history/purge-missing');
+export const CLEAR = endpoint('ClearHistory', 'clearHistory', 'POST /api/library/history/clear');
+export const DELETE_SEARCH = endpoint('DeleteSearch', 'deleteSearch', 'POST /api/catalog/searches/delete');
+export const CLEAR_SEARCHES = endpoint('ClearSearches', 'clearSearches', 'POST /api/catalog/searches/clear');
+export const ADD_PENDING = endpoint('AddPending', 'addPendingDownloads', 'POST /api/downloads/pending');
+export const HISTORY_CHANGED = serverEvent('HistoryChanged', 'historyChanged', 'history.changed');

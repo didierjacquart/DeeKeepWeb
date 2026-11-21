@@ -1,19 +1,17 @@
-import { gql } from '@apollo/client';
 import { get, set } from 'idb-keyval';
 import { Store } from '../../lib/store';
-import { getApollo } from '../graphql/apollo';
+import { isTransient, send } from '../api/http';
 import { connectivity } from './connectivity';
 import { notify } from '../ui/notify';
 
-const KEY = 'dk-offline-queue-v1';
+const KEY = 'dk-offline-queue-v2';
 
 /**
- * Mutation mise en attente faute de réseau, rejouée à la reconnexion.
- * @typedef {object} QueuedMutation
+ * Action mise en attente faute de réseau, rejouée à la reconnexion.
+ * @typedef {object} QueuedAction
  * @property {string} id Clé d'idempotence.
  * @property {string} label
- * @property {string} query Texte GraphQL de la mutation.
- * @property {Record<string, unknown>} variables
+ * @property {import('../api/http').HttpRequest} request Requête HTTP à rejouer telle quelle.
  * @property {number} createdAt
  * @property {number} attempts
  * @property {string} [lastError]
@@ -55,9 +53,9 @@ export class OfflineQueueService extends Store {
     setTimeout(() => void this.replay(), 3000);
   }
 
-  async enqueue(label, query, variables, id = newIdempotencyKey()) {
+  async enqueue(label, request, id = newIdempotencyKey()) {
     await this.loaded;
-    const entry = { id, label, query, variables, createdAt: Date.now(), attempts: 0 };
+    const entry = { id, label, request, createdAt: Date.now(), attempts: 0 };
     this.setState(s => ({ items: [...s.items, entry] }));
     await this.save();
     notify.info(`Hors ligne : « ${label} » sera envoyé dès le retour de la connexion.`);
@@ -77,20 +75,16 @@ export class OfflineQueueService extends Store {
       // Dans l'ordre : une action peut dépendre de la précédente.
       for (const entry of [...this.state.items]) {
         try {
-          const result = await getApollo().mutate({
-            mutation: gql(entry.query),
-            variables: entry.variables,
-            context: { headers: { 'X-Idempotency-Key': entry.id } },
-            errorPolicy: 'all',
-          });
-          const errors = result.error;
-          if (errors && /SERVICE_UNAVAILABLE|Failed to fetch|NetworkError/i.test(errors.message ?? '')) {
-            throw new Error(errors.message);
-          }
+          await send(entry.request, { 'X-Idempotency-Key': entry.id });
           await this.remove(entry.id);
-          if (errors) notify.error(`« ${entry.label} » a échoué : ${errors.message}`);
-          else notify.success(`« ${entry.label} » envoyé.`);
+          notify.success(`« ${entry.label} » envoyé.`);
         } catch (e) {
+          if (!isTransient(e)) {
+            // Refusée par le serveur : la rejouer ne changerait rien.
+            await this.remove(entry.id);
+            notify.error(`« ${entry.label} » a échoué : ${e instanceof Error ? e.message : String(e)}`);
+            continue;
+          }
           const failed = {
             ...entry,
             attempts: entry.attempts + 1,

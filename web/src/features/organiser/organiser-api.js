@@ -1,4 +1,4 @@
-import { api } from '../../core/graphql/api';
+import { api } from '../../core/api/api';
 import { checksToMap } from './organize-checks';
 import {
   APPLY,
@@ -17,7 +17,7 @@ import {
 } from './organiser.queries';
 
 /**
- * Appels serveur de la page Organiser (documents GraphQL dans organiser.queries.js).
+ * Appels serveur de la page Organiser (routes déclarées dans organiser.queries.js).
  * Les requêtes rendent la donnée utile ; les mutations rendent le résultat de `api.mutate`.
  */
 

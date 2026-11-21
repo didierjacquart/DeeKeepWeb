@@ -2,10 +2,12 @@ import { useSettings } from './hooks/useSettings';
 import { AccountCard } from './components/AccountCard';
 import { DatabaseCard } from './components/DatabaseCard';
 import { ExportSettingsCard } from './components/ExportSettingsCard';
+import { TrashSettingsCard } from './components/TrashSettingsCard';
+import { UsbSyncCard } from './components/UsbSyncCard';
 import './settings-page.scss';
 
 /**
- * Paramètres d'exportation et de rangement, base de données, compte. Chaque changement est
+ * Paramètres d'exportation et de rangement, disque USB, corbeille, base de données, compte. Chaque changement est
  * enregistré aussitôt (comme l'original) ; hors ligne, il part dans la file d'actions en attente.
  */
 export function SettingsPage() {
@@ -22,6 +24,12 @@ export function SettingsPage() {
       )}
 
       <ExportSettingsCard settings={settings} db={db} save={save} />
+
+      <h2 className="sub">Disque USB</h2>
+      <UsbSyncCard />
+
+      <h2 className="sub">Corbeille</h2>
+      <TrashSettingsCard />
 
       <h2 className="sub">Base de données</h2>
       <DatabaseCard db={db} />

@@ -54,3 +54,16 @@
     }
   }
 }
+
+.usb-sync {
+  .usb-ok {
+    color: var(--dk-success);
+  }
+  .usb-absent {
+    color: var(--dk-warn);
+  }
+}
+
+.trash-days {
+  width: 90px;
+}
