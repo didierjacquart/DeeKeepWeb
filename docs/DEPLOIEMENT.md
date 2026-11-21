@@ -81,8 +81,11 @@ configuration ni aux bases.
    sauvegarde quotidienne garde une copie locale dans `/var/lib/deekeep/backups`.
    **Musique sur le NAS et disque USB synchronisé** : la bibliothèque vit sur
    un partage du NAS ; un disque USB branché sur le serveur en est une copie
-   tenue à jour dans les deux sens (au branchement, chaque nuit à
-   `Sync:NightlyAt`, ou par **Paramètres → Disque USB → Synchroniser**) :
+   tenue à jour dans les deux sens (au branchement, une minute après les
+   derniers changements de la bibliothèque — téléchargement, conversion,
+   rangement, tags ; `Sync:AfterChangesSeconds`, 0 pour s'en passer —,
+   chaque nuit à `Sync:NightlyAt`, ou par **Paramètres → Disque USB →
+   Synchroniser**) :
    ```bash
    lsblk -o NAME,UUID,FSTYPE,SIZE          # UUID de la partition du disque
    sudo sh /opt/deekeep/bin/deekeep-usb-setup.sh //192.168.1.159/music 0F6A-107E

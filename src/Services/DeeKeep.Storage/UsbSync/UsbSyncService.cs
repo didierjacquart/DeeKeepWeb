@@ -8,8 +8,9 @@ using DeeKeep.Contracts.Sync;
 namespace DeeKeep.Storage.UsbSync;
 
 /// <summary>
-/// Synchronisation du disque USB : tâche <c>usbsync.run</c>, détection du branchement et
-/// passage quotidien, propagation immédiate des suppressions faites dans l'application.
+/// Synchronisation du disque USB : tâche <c>usbsync.run</c>, détection du branchement,
+/// passage quotidien et passage après les changements de la bibliothèque, propagation
+/// immédiate des suppressions faites dans l'application.
 /// </summary>
 public static class UsbSyncService
 {
@@ -43,6 +44,16 @@ public static class UsbSyncService
             }
             return Task.CompletedTask;
         }, durable: true, TrashEvents.Trashed, TrashEvents.Restored);
+
+        // Nouveaux fichiers ou fichiers modifiés dans la bibliothèque : synchronisation après un délai de calme.
+        services.AddSingleton<UsbSyncAfterChanges>();
+        services.AddEventSubscription(ServiceNames.Library, (sp, evt, _) =>
+        {
+            if (evt.Data?.Deserialize<TracksChangedEvent>(JsonDefaults.Options) is { } changed
+                && UsbSyncAfterChanges.IsLibraryFileChange(changed.Reason))
+                sp.GetRequiredService<UsbSyncAfterChanges>().Touch();
+            return Task.CompletedTask;
+        }, durable: false, EventTypes.TracksChanged);
         return services;
     }
 

@@ -1,3 +1,4 @@
+using DeeKeep.Contracts;
 using DeeKeep.Storage.UsbSync;
 using Xunit;
 
@@ -105,6 +106,28 @@ public class UsbSyncPlannerTests
         Assert.False(UsbSyncWatcher.NightlyDue("03:30", day.AddHours(3.6), DateOnly.FromDateTime(day)));
         Assert.False(UsbSyncWatcher.NightlyDue("03:30", day.AddHours(9), null)); // serveur éteint la nuit : pas de rattrapage en journée
         Assert.False(UsbSyncWatcher.NightlyDue(null, day.AddHours(4), null));
+    }
+
+    [Theory]
+    [InlineData("register:download", true)]
+    [InlineData("register:organize", true)]
+    [InlineData("register:restore", true)]
+    [InlineData("unlinked", false)]   // lien utilisateur seulement : aucun fichier ne change
+    [InlineData("bitrate", false)]
+    [InlineData("scan-progress", false)]
+    [InlineData(null, false)]
+    public void Only_file_changes_of_the_library_trigger_a_sync(string? reason, bool triggers) =>
+        Assert.Equal(triggers, UsbSyncAfterChanges.IsLibraryFileChange(reason));
+
+    [Fact]
+    public void After_changes_a_sync_waits_for_the_running_one_and_skips_without_disk()
+    {
+        Assert.Equal(UsbSyncAfterChanges.Decision.Enqueue, UsbSyncAfterChanges.Decide(true, true, null));
+        Assert.Equal(UsbSyncAfterChanges.Decision.Enqueue, UsbSyncAfterChanges.Decide(true, true, JobStatus.Queued));
+        // Une synchronisation en cours a pu relever les dossiers avant l'arrivée des nouveaux fichiers.
+        Assert.Equal(UsbSyncAfterChanges.Decision.Later, UsbSyncAfterChanges.Decide(true, true, JobStatus.Running));
+        Assert.Equal(UsbSyncAfterChanges.Decision.Skip, UsbSyncAfterChanges.Decide(false, true, null));
+        Assert.Equal(UsbSyncAfterChanges.Decision.Skip, UsbSyncAfterChanges.Decide(true, false, null));
     }
 
     [Fact]

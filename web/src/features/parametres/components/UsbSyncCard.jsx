@@ -5,8 +5,8 @@ import { formatBytes, formatWhen } from '../../../shared/format';
 import { useUsbSync } from '../hooks/useUsbSync';
 
 /**
- * Disque USB : copie de la bibliothèque tenue à jour dans les deux sens (au branchement, chaque
- * nuit, ou à la demande). Incrémental : seule une suppression faite dans l'application se propage.
+ * Disque USB : copie de la bibliothèque tenue à jour dans les deux sens (au branchement, après les
+ * nouveaux titres, chaque nuit, ou à la demande). Incrémental : seule une suppression faite dans l'application se propage.
  */
 export function UsbSyncCard() {
   const { status, job, running, loading, error, run } = useUsbSync();
@@ -42,7 +42,7 @@ export function UsbSyncCard() {
       <p className="dk-faint">
         Les fichiers ajoutés d'un côté sont copiés de l'autre ; un fichier effacé à la main revient. Seule une
         suppression faite dans l'application (Bibliothèque → Supprimer) est reportée sur le disque. Synchronisation
-        automatique au branchement et chaque nuit.
+        automatique au branchement, une minute après de nouveaux titres et chaque nuit.
         {status.pendingDeletions > 0 && ` ${status.pendingDeletions} suppression(s) en attente du disque.`}
       </p>
 

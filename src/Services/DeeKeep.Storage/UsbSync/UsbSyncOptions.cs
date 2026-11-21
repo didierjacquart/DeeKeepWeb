@@ -24,6 +24,12 @@ public sealed class UsbSyncOptions
     /// <summary>Lancer une synchronisation dès que le disque est branché.</summary>
     public bool OnPlug { get; set; } = true;
 
+    /// <summary>
+    /// Synchroniser après les changements de la bibliothèque (téléchargements…), une fois
+    /// restée calme ce nombre de secondes ; 0 = seulement au branchement, la nuit ou sur demande.
+    /// </summary>
+    public int AfterChangesSeconds { get; set; } = 60;
+
     /// <summary>Intervalle de détection du disque (secondes).</summary>
     public int PollSeconds { get; set; } = 30;
 }

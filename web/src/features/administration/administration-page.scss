@@ -1,6 +1,18 @@
 .dk-administration-page {
+  // Colonnes communes à l'en-tête et aux lignes (subgrid) : la colonne des actions prend la
+  // largeur de ses boutons partout, en-tête compris (en « auto » ligne par ligne, l'en-tête
+  // vide la réduisait à rien et décalait tous les titres).
+  .dk-table {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) 120px minmax(0, 2fr) minmax(0, 1fr) 90px max-content;
+    column-gap: 8px;
+  }
   .row {
-    grid-template-columns: minmax(0, 1.2fr) 120px minmax(0, 2fr) minmax(0, 1fr) 90px auto;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+  }
+  .dk-empty {
+    grid-column: 1 / -1;
   }
   .name {
     display: flex;
@@ -15,7 +27,11 @@
     overflow: visible;
   }
   @media (max-width: 899px) {
+    .dk-table {
+      display: flex;
+    }
     .row {
+      grid-column: auto;
       grid-template-columns: minmax(0, 1fr) auto auto;
       row-gap: 8px;
     }
@@ -25,6 +41,7 @@
     .acts {
       grid-column: 1 / -1;
       justify-content: flex-start;
+      flex-wrap: wrap;
       button {
         min-height: 40px;
       }
