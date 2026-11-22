@@ -9,7 +9,7 @@ import { useUsbSync } from '../hooks/useUsbSync';
  * nouveaux titres, chaque nuit, ou à la demande). Incrémental : seule une suppression faite dans l'application se propage.
  */
 export function UsbSyncCard() {
-  const { status, job, running, loading, error, run } = useUsbSync();
+  const { status, job, running, ejecting, eject, mount, loading, error, run } = useUsbSync();
 
   if (loading) return <div className="dk-card form dk-faint">Lecture de l'état du disque USB…</div>;
   if (error) return <div className="dk-card form dk-error-text">État du disque USB indisponible : {error}</div>;
@@ -29,7 +29,7 @@ export function UsbSyncCard() {
     <div className="dk-card form usb-sync">
       <p className="dk-help">
         <span className={cx('dk-chip', status.usbPresent ? 'usb-ok' : 'usb-absent')}>
-          {status.usbPresent ? 'Disque branché' : 'Disque absent'}
+          {status.usbPresent ? 'Disque branché' : status.ejected ? 'Disque éjecté' : 'Disque absent'}
         </span>{' '}
         <strong>{status.usbRoot}</strong>
         {status.usbPresent && status.usbTotalBytes
@@ -66,8 +66,28 @@ export function UsbSyncCard() {
       {!running && !last && status.usbPresent && <p className="dk-faint">Aucune synchronisation pour l'instant.</p>}
       {status.problem && !running && <p className="dk-help dk-error-text">{status.problem}</p>}
 
+      {status.ejected && (
+        <p className="dk-help" role="status">
+          Disque éjecté : vous pouvez le débrancher. Rebranché, il sera remonté et synchronisé tout seul.
+        </p>
+      )}
+
       <div className="dk-actions">
         <span className="dk-spacer"></span>
+        {status.ejected ? (
+          <button className="control-btn" onClick={() => void mount()} data-tip="Le disque est resté branché : le remonter">
+            Remonter
+          </button>
+        ) : (
+          <button
+            className="control-btn"
+            disabled={running || ejecting || !status.usbPresent}
+            onClick={() => void eject()}
+            data-tip={running ? 'Attendez la fin de la synchronisation' : 'Démonte proprement le disque avant de le débrancher'}
+          >
+            {ejecting ? 'Éjection…' : 'Éjecter le disque'}
+          </button>
+        )}
         <button
           className="primary-btn"
           disabled={running || !status.usbPresent || !status.libraryPresent}

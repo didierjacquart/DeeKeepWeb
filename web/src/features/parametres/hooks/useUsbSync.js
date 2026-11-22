@@ -6,7 +6,7 @@ import { useJob } from '../../../core/jobs/useJobs';
 import { notify } from '../../../core/ui/notify';
 import { useWatch } from '../../../core/api/useWatch';
 import { useSubscription } from '../../../lib/hooks/useSubscription';
-import { SYNC_JOB, SYNC_RUN, SYNC_STATUS } from '../usb-sync-api';
+import { SYNC_EJECT, SYNC_JOB, SYNC_MOUNT, SYNC_RUN, SYNC_STATUS } from '../usb-sync-api';
 
 /**
  * Synchronisation du disque USB : état lu toutes les 30 s (branchement, retrait) et à chaque
@@ -33,10 +33,30 @@ export function useUsbSync() {
     }
   };
 
+  const [ejecting, setEjecting] = useState(false);
+  const now = { queueable: false, refetch: ['UsbSyncStatus'] };
+
+  const eject = async () => {
+    setEjecting(true);
+    const r = await api.mutate(SYNC_EJECT, {}, { ...now, label: 'Éjecter le disque USB' });
+    setEjecting(false);
+    if (r.error) notify.error(r.error);
+    else notify.success('Disque éjecté : vous pouvez le débrancher.');
+  };
+
+  const mount = async () => {
+    const r = await api.mutate(SYNC_MOUNT, {}, { ...now, label: 'Remonter le disque USB' });
+    if (r.error) notify.error(r.error);
+    else notify.info('Disque remonté.');
+  };
+
   return {
     status,
     job,
     running,
+    ejecting,
+    eject,
+    mount,
     loading: watched.loading && !status,
     error: watched.error && !status ? watched.error : null,
     run,

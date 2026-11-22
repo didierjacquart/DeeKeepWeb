@@ -69,6 +69,12 @@ public class StampTests
         }
         foreach (var (table, compute) in new (string, Func<string, string?>)[] { ("archive", Stamp.Archive) })
         {
+            // Une base desktop plus ancienne n'a pas encore cette table : rien à comparer.
+            using (var exists = db.CreateCommand())
+            {
+                exists.CommandText = $"SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = '{table}'";
+                if (Convert.ToInt64(exists.ExecuteScalar()) == 0) continue;
+            }
             using var cmd = db.CreateCommand();
             cmd.CommandText = $"SELECT path, stamp FROM {table} WHERE deleted = 0";
             using var reader = cmd.ExecuteReader();

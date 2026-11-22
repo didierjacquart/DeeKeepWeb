@@ -58,12 +58,13 @@ describe('user-form', () => {
   });
 
   it('vérifie le formulaire de création', () => {
-    const form = { ...emptyForm(), name: ' bob ', password: 'motdepasse', confirm: 'motdepasse' };
-    expect(formError({ ...form, name: '' }, true)).toBe("Le nom d'utilisateur est obligatoire.");
+    const form = { ...emptyForm(), name: ' bob@example.com ', password: 'motdepasse', confirm: 'motdepasse' };
+    expect(formError({ ...form, name: '' }, true)).toBe("L'adresse e-mail est obligatoire.");
+    expect(formError({ ...form, name: 'bob' }, true)).toBe('Adresse e-mail invalide.');
     expect(formError({ ...form, password: 'court', confirm: 'court' }, true)).toMatch(/8 caractères/);
     expect(formError({ ...form, confirm: 'autre' }, true)).toBe('Les deux saisies diffèrent.');
     expect(formError(form, true)).toBeNull();
-    expect(toBody(form, true)).toMatchObject({ name: 'bob', password: 'motdepasse', role: 'user' });
+    expect(toBody(form, true)).toMatchObject({ name: 'bob@example.com', password: 'motdepasse', role: 'user' });
     expect(toBody(form, false)).not.toHaveProperty('password');
   });
 });
@@ -81,12 +82,29 @@ describe('AdministrationPage', () => {
     expect(within(me).getByRole('button', { name: 'Supprimer admin' })).toBeDisabled();
   });
 
+  it('montre en tête les comptes à valider et les valide avec leurs droits', async () => {
+    const NEW = { ...GUEST, id: 'n9', name: 'nouveau@example.com', pending: true, disabled: true };
+    const { user, server } = setup({ AdminUsers: { users: [ADMIN, GUEST, NEW] }, UpdateUser: { updateUser: { ...NEW } } });
+    const table = screen.getByRole('table', { name: 'Comptes' });
+    const row = (await within(table).findByText('nouveau@example.com')).closest('[role="row"]');
+    // Premier compte de la liste, juste après l'en-tête.
+    expect(within(table).getAllByRole('row')[1]).toBe(row);
+    expect(row).toHaveTextContent('À valider');
+    expect(screen.getByRole('status')).toHaveTextContent('1 compte attend votre validation');
+    await user.click(within(row).getByRole('button', { name: 'Valider nouveau@example.com' }));
+    await waitFor(() =>
+      expect(server.mutations('UpdateUser')).toEqual([
+        { id: 'n9', role: 'user', pages: ['musique', 'qualite'], canDownload: true, canDelete: false, disabled: false },
+      ]),
+    );
+  });
+
   it('crée un compte avec ses pages et ses droits', async () => {
-    const { user, server } = setup({ CreateUser: { createUser: { ...GUEST, id: 'n3', name: 'bob' } } });
+    const { user, server } = setup({ CreateUser: { createUser: { ...GUEST, id: 'n3', name: 'bob@example.com' } } });
     await screen.findByText('invite');
     await user.click(screen.getByRole('button', { name: 'Nouveau compte' }));
     const dialog = screen.getByRole('dialog');
-    await user.type(within(dialog).getByLabelText("Nom d'utilisateur"), 'bob');
+    await user.type(within(dialog).getByLabelText('Adresse e-mail'), 'bob@example.com');
     await user.type(within(dialog).getByLabelText('Mot de passe'), 'motdepasse');
     await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'motdepasse');
     await user.click(within(dialog).getByLabelText('Qualité'));
@@ -96,7 +114,7 @@ describe('AdministrationPage', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(server.mutations('CreateUser')).toEqual([
       {
-        name: 'bob',
+        name: 'bob@example.com',
         password: 'motdepasse',
         role: 'user',
         pages: ['musique', 'qualite'],
@@ -113,7 +131,7 @@ describe('AdministrationPage', () => {
     await screen.findByText('invite');
     await user.click(screen.getByRole('button', { name: 'Nouveau compte' }));
     const dialog = screen.getByRole('dialog');
-    await user.type(within(dialog).getByLabelText("Nom d'utilisateur"), 'bob');
+    await user.type(within(dialog).getByLabelText('Adresse e-mail'), 'bob@example.com');
     await user.type(within(dialog).getByLabelText('Mot de passe'), 'court');
     await user.type(within(dialog).getByLabelText('Confirmer le mot de passe'), 'court');
     await user.click(within(dialog).getByRole('button', { name: 'Créer' }));

@@ -26,18 +26,47 @@ export class AuthService extends Store {
       const cached = localStorage.getItem(this.storageKey);
       const state = cached
         ? JSON.parse(cached)
-        : { authEnabled: true, authenticated: false, user: null, needsSetup: false, pages: [] };
+        : { authEnabled: true, authenticated: false, user: null, needsSetup: false, mailEnabled: false, pages: [] };
       this.setState({ session: state });
       return state;
     }
   }
 
-  async login(password, user) {
-    return this.post('/auth/login', { user, password });
+  /** Connexion par adresse e-mail ; rend le message d'erreur, ou null. */
+  async login(email, password) {
+    return this.post('/auth/login', { user: email, password });
   }
 
-  async setup(password, user) {
-    return this.post('/auth/setup', { user, password });
+  /** Premier compte (administrateur), à la toute première visite. */
+  async setup(email, password) {
+    return this.post('/auth/setup', { user: email, password });
+  }
+
+  /**
+   * Envoie un code à usage unique (inscription ou mot de passe oublié) ; en redemander un annule le précédent.
+   * @returns {Promise<{ error: string | null, resendAfter: number }>}
+   */
+  async requestCode(email) {
+    const r = await this.call('/auth/code', { email });
+    if (r.ok) return { error: null, resendAfter: r.data?.resendAfter ?? 30 };
+    return { error: errorOf(r), resendAfter: r.data?.retryAfter ?? 0 };
+  }
+
+  /** Contrôle le code reçu (il reste valable pour l'étape du mot de passe) ; rend l'erreur, ou null. */
+  async checkCode(email, code) {
+    const r = await this.call('/auth/code/check', { email, code });
+    return r.ok ? null : errorOf(r);
+  }
+
+  /**
+   * Code et mot de passe : compte créé (en attente de validation) ou mot de passe remplacé.
+   * @returns {Promise<{ error: string | null, status?: 'signedIn' | 'pending' | 'disabled', message?: string }>}
+   */
+  async complete(email, code, password) {
+    const r = await this.call('/auth/complete', { email, code, password });
+    if (!r.ok) return { error: errorOf(r) };
+    if (r.data?.status === 'signedIn') await this.refresh();
+    return { error: null, status: r.data?.status, message: r.data?.message };
   }
 
   async changePassword(password) {
@@ -50,7 +79,19 @@ export class AuthService extends Store {
     await this.refresh();
   }
 
+  /** Envoi qui ouvre ou change la session : rend le message d'erreur, ou null (session relue). */
   async post(url, body) {
+    const r = await this.call(url, body);
+    if (r.ok) {
+      await this.refresh();
+      return null;
+    }
+    if (r.status === 401) return 'Adresse e-mail ou mot de passe incorrect.';
+    return errorOf(r);
+  }
+
+  /** @returns {Promise<{ ok: boolean, status: number, data: any }>} status 0 : serveur injoignable. */
+  async call(url, body) {
     try {
       const response = await fetch(url, {
         method: 'POST',
@@ -58,17 +99,27 @@ export class AuthService extends Store {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-      if (response.ok) {
-        await this.refresh();
-        return null;
-      }
-      if (response.status === 401) return "Nom d'utilisateur ou mot de passe incorrect.";
       const text = await response.text();
-      return text.replace(/^"|"$/g, '') || `Erreur ${response.status}`;
+      let data = text;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        // texte brut
+      }
+      return { ok: response.ok, status: response.status, data };
     } catch {
-      return 'Serveur injoignable.';
+      return { ok: false, status: 0, data: null };
     }
   }
+}
+
+/** Message lisible d'une réponse refusée (texte du serveur, `{ error }`, ou code HTTP). */
+function errorOf(r) {
+  if (r.status === 0) return 'Serveur injoignable.';
+  if (typeof r.data === 'string' && r.data.trim()) return r.data;
+  if (r.data?.error) return r.data.error;
+  if (r.data?.message) return r.data.message;
+  return `Erreur ${r.status}`;
 }
 
 export const auth = new AuthService();

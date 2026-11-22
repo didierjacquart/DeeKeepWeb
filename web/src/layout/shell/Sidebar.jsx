@@ -1,17 +1,21 @@
 import { useStore } from '../../lib/store';
 import { cx } from '../../lib/cx';
 import { auth } from '../../core/auth/auth';
-import { canSeePage } from '../../core/auth/permissions';
+import { useWatch } from '../../core/api/useWatch';
+import { USERS } from '../../features/administration/admin-api';
 import { AppLogo } from '../AppLogo';
 import { navBadges } from '../nav-badges';
 import { BOTTOM_NAV, MAIN_NAV, TOOLS_NAV, visibleNav } from './nav-items';
 import { NavEntry } from './NavEntry';
 import { LinkStatus } from './LinkStatus';
 
+/** Comptes relus toutes les minutes pour la pastille « à valider » (administrateurs seulement). */
+const PENDING_POLL_MS = 60000;
+
 /**
- * Barre latérale : logo, navigation (groupe « Outils » repliable) et état de la liaison.
- * Seules les pages ouvertes au compte y figurent ; sans accès aux Paramètres (où se
- * trouve le compte), un bouton de déconnexion les remplace.
+ * Barre latérale : logo, navigation (groupe « Outils » repliable), déconnexion et état de la
+ * liaison. Seules les pages ouvertes au compte y figurent. Un administrateur voit sur
+ * « Administration » une pastille d'alerte : le nombre de comptes qui attendent sa validation.
  */
 export function Sidebar({ open, toolsOpen, onToggleTools, onOpenJobs, onToggleJobs }) {
   const historyBadge = useStore(navBadges, s => s.history);
@@ -19,11 +23,22 @@ export function Sidebar({ open, toolsOpen, onToggleTools, onOpenJobs, onToggleJo
   const main = visibleNav(MAIN_NAV, session);
   const tools = visibleNav(TOOLS_NAV, session);
   const bottom = visibleNav(BOTTOM_NAV, session);
-  const showLogout = !!session?.authEnabled && !canSeePage(session, 'parametres');
+  const showLogout = !!session?.authEnabled && !!session?.authenticated;
+  const admin = !!session?.authEnabled && session?.role === 'admin';
+  // Même requête que la page Administration : une validation y met aussitôt la pastille à jour.
+  const accounts = useWatch(USERS, admin ? undefined : null, PENDING_POLL_MS);
+  const pending = admin ? (accounts.data?.users ?? []).filter(u => u.pending).length : 0;
 
   const logout = async () => {
     await auth.logout();
     location.assign('/login');
+  };
+
+  const badgeOf = item => {
+    if (item.path === '/historique') return { badge: historyBadge };
+    if (item.path === '/administration' && pending > 0)
+      return { badge: pending, alert: true, badgeLabel: `${pending} compte(s) à valider` };
+    return {};
   };
 
   return (
@@ -40,7 +55,7 @@ export function Sidebar({ open, toolsOpen, onToggleTools, onOpenJobs, onToggleJo
         )}
         {toolsOpen && tools.map(item => <NavEntry key={item.path} item={item} sub />)}
         {bottom.map(item => (
-          <NavEntry key={item.path} item={item} badge={item.path === '/historique' ? historyBadge : null} />
+          <NavEntry key={item.path} item={item} {...badgeOf(item)} />
         ))}
         {showLogout && (
           <button className="nav-btn" onClick={() => void logout()} data-tip={`Connecté : ${session.user}`}>

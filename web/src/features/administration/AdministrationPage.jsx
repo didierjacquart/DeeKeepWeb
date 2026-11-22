@@ -16,7 +16,16 @@ import './administration-page.scss';
  */
 export function AdministrationPage() {
   const me = useStore(auth, s => s.session?.user);
-  const { users, loading, error, stale, create, update, resetPassword, remove } = useAdminUsers();
+  const { users, loading, error, stale, create, update, approve, resetPassword, remove } = useAdminUsers();
+  // Comptes à valider en tête, puis les autres dans l'ordre du serveur.
+  const pending = users.filter(u => u.pending);
+  const sorted = [...pending, ...users.filter(u => !u.pending)];
+
+  const validate = async user => {
+    const failure = await approve(user);
+    if (failure) notify.error(failure);
+    else notify.success(`Compte « ${user.name} » validé.`);
+  };
 
   const add = async () => {
     if (await openUserDialog({ onSubmit: create })) notify.success('Compte créé.');
@@ -60,10 +69,18 @@ export function AdministrationPage() {
         <p className="dk-help dk-error-text">Hors ligne : liste servie par le cache local, peut être périmée.</p>
       )}
       {error && !stale && <p className="dk-error-text">{error}</p>}
+      {pending.length > 0 && (
+        <p className="dk-help pending-note" role="status">
+          {pending.length === 1
+            ? '1 compte attend votre validation'
+            : `${pending.length} comptes attendent votre validation`}{' '}
+          : vérifiez l'adresse, ajustez au besoin ses pages et droits (Modifier), puis Valider.
+        </p>
+      )}
 
       <div className="dk-table" role="table" aria-label="Comptes">
         <div className="dk-thead row" role="row">
-          <span role="columnheader">Nom</span>
+          <span role="columnheader">E-mail</span>
           <span role="columnheader">Rôle</span>
           <span role="columnheader" className="dk-hide-mobile">
             Pages
@@ -74,10 +91,10 @@ export function AdministrationPage() {
           <span role="columnheader">État</span>
           <span role="columnheader" aria-label="Actions"></span>
         </div>
-        {users.map(u => {
+        {sorted.map(u => {
           const self = !!me && u.name.toLowerCase() === me.toLowerCase();
           return (
-            <div key={u.id} className={cx('dk-row row', u.disabled && 'dim')} role="row">
+            <div key={u.id} className={cx('dk-row row', u.disabled && !u.pending && 'dim', u.pending && 'pending')} role="row">
               <span role="cell" className="name">
                 {u.name}
                 {self && <span className="dk-chip info">vous</span>}
@@ -90,9 +107,18 @@ export function AdministrationPage() {
                 {rightsSummary(u)}
               </span>
               <span role="cell">
-                <span className={cx('dk-chip', u.disabled ? 'err' : 'ok')}>{u.disabled ? 'Désactivé' : 'Actif'}</span>
+                {u.pending ? (
+                  <span className="dk-chip warn">À valider</span>
+                ) : (
+                  <span className={cx('dk-chip', u.disabled ? 'err' : 'ok')}>{u.disabled ? 'Désactivé' : 'Actif'}</span>
+                )}
               </span>
               <span role="cell" className="acts">
+                {u.pending && (
+                  <button className="primary-btn small" onClick={() => void validate(u)} aria-label={`Valider ${u.name}`}>
+                    Valider
+                  </button>
+                )}
                 <Link className="control-btn small" to={`/bibliotheque?utilisateur=${encodeURIComponent(u.id)}`}>
                   Ses titres
                 </Link>

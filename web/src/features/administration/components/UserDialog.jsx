@@ -4,7 +4,7 @@ import { DialogActions, DialogContent, DialogTitle } from '../../../shared/dialo
 import { emptyForm, formError, formFromUser, toBody, togglePage } from '../user-form';
 
 /**
- * Création ou modification d'un compte : nom et mot de passe (création seulement),
+ * Création ou modification d'un compte : adresse e-mail et mot de passe (création seulement),
  * rôle, pages ouvertes, droits d'action, désactivation. `onSubmit(corps)` rend le
  * message d'erreur du serveur, affiché sans fermer la boîte, ou null.
  * @param {{ user?: import('../admin-api').AdminUser, onSubmit: (body: object) => Promise<string | null>, close: (r?: boolean) => void }} props
@@ -38,11 +38,13 @@ export function UserDialog({ user, onSubmit, close }) {
         {creating && (
           <>
             <label className="field">
-              <span>Nom d'utilisateur</span>
+              <span>Adresse e-mail</span>
               <input
                 className="dk-input"
-                name="username"
+                type="email"
+                name="email"
                 autoComplete="off"
+                autoCapitalize="none"
                 value={form.name}
                 onChange={e => set({ name: e.target.value })}
                 data-autofocus

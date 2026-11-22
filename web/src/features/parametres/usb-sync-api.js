@@ -6,5 +6,11 @@ export const SYNC_STATUS = endpoint('UsbSyncStatus', 'status', 'GET /api/sync/st
 /** « Synchroniser » : tâche usbsync.run (celle qui tourne déjà le cas échéant). */
 export const SYNC_RUN = endpoint('UsbSyncRun', 'run', 'POST /api/sync/run');
 
+/** « Éjecter » : démontage propre, le disque peut être débranché (rend l'état à jour). */
+export const SYNC_EJECT = endpoint('UsbSyncEject', 'eject', 'POST /api/sync/eject');
+
+/** « Remonter » un disque éjecté resté branché. */
+export const SYNC_MOUNT = endpoint('UsbSyncMount', 'mount', 'POST /api/sync/mount');
+
 /** Fin ou avancement d'une synchronisation : l'état est relu. */
 export const SYNC_JOB = serverEvent('UsbSyncJob', 'jobUpdated', 'job.updated', job => job.type === 'usbsync.run');

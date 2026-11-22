@@ -2,6 +2,7 @@ using DeeKeep.Gateway.Infrastructure;
 
 namespace DeeKeep.Gateway.Api;
 
+/// <summary><see cref="Name"/> : adresse e-mail du compte.</summary>
 public sealed record CreateUserBody(
     string Name,
     string Password,
@@ -24,9 +25,10 @@ public sealed record UserDto(
     bool CanDownload,
     bool CanDelete,
     bool Disabled,
-    double CreatedAt)
+    double CreatedAt,
+    bool Pending)
 {
-    public static UserDto From(AppUser u) => new(u.Id, u.Name, u.Role, u.Pages, u.CanDownload, u.CanDelete, u.Disabled, u.CreatedAt);
+    public static UserDto From(AppUser u) => new(u.Id, u.Name, u.Role, u.Pages, u.CanDownload, u.CanDelete, u.Disabled, u.CreatedAt, u.Pending);
 }
 
 /// <summary>

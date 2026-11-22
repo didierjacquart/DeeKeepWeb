@@ -85,7 +85,11 @@ configuration ni aux bases.
    derniers changements de la bibliothèque — téléchargement, conversion,
    rangement, tags ; `Sync:AfterChangesSeconds`, 0 pour s'en passer —,
    chaque nuit à `Sync:NightlyAt`, ou par **Paramètres → Disque USB →
-   Synchroniser**) :
+   Synchroniser**). **Éjecter le disque** (même carte) le démonte proprement
+   avant de le débrancher ; débranché puis rebranché, il est remonté et
+   synchronisé tout seul (« Remonter » s'il est resté branché). Le script
+   installe la règle polkit qui autorise le service à arrêter et relancer ce
+   seul montage :
    ```bash
    lsblk -o NAME,UUID,FSTYPE,SIZE          # UUID de la partition du disque
    sudo sh /opt/deekeep/bin/deekeep-usb-setup.sh //192.168.1.159/music 0F6A-107E
@@ -121,7 +125,15 @@ configuration ni aux bases.
    Modifier le dossier**. Sur un poste de développement Windows,
    `Library:BrowseAnywhere: true` ouvre tous les lecteurs (et les chemins UNC
    saisis à la main).
-4. **Archive** existante : copier `deekeep-archive.db` dans `ArchiveRoot`.
+4. **Archive** : base SQLite (`deekeep-archive.db`) qui garde le son de chaque
+   titre, copie exacte rangée par empreinte SHA-1 (« Restaurer » recrée un
+   fichier perdu). Emplacement réglé dans la Bibliothèque (bouton Archive) ou
+   `Storage:ArchiveRoot` ; sur le Pi : `/mnt/deekeep-db` (dossier Database du
+   NAS). Une archive existante se copie à cet emplacement. Archivage
+   automatique : une minute après tout fichier écrit dans la bibliothèque
+   (`Archive:AfterChangesSeconds`, 0 pour s'en passer) et un passage quotidien
+   à `Archive:NightlyAt` (04:00) qui rattrape le reste ; un titre déjà à jour
+   est sauté sans relecture.
 5. **Données de l'application desktop** (historique, mesures de qualité,
    durées de référence plus récentes que la base) : copier
    `deekeep_config.json`, `quality_cache.json`, `reference_cache.json` dans
@@ -144,8 +156,21 @@ configuration ni aux bases.
   démarrage de cette version, la table est complétée (rôle, pages, droits,
   désactivation, identifiant) ; le compte existant devient administrateur avec
   tous les droits et sa session reste ouverte.
-- Page **Administration** (administrateurs seulement) : créer un compte (nom,
-  mot de passe de 8 caractères au moins), choisir son rôle, les pages qu'il
+- Un compte est désigné par son **adresse e-mail** (colonne `name`).
+- **Inscription** et **mot de passe oublié** (écran de connexion) : adresse →
+  code à 6 chiffres envoyé par e-mail (15 min, 5 essais ; « Renvoyer un code »
+  annule le précédent, 30 s entre deux envois, 6 par heure) → deux saisies du
+  mot de passe. Un compte inscrit ainsi est **en attente** (désactivé, pages
+  Musique et Bibliothèque) : les administrateurs reçoivent un e-mail, la
+  page Administration le montre en tête (« À valider », pastille rouge sur le
+  menu) et **Valider** l'active. Mot de passe oublié : le compte garde son
+  identifiant et ses droits.
+- Envoi des e-mails : `sudo sh /opt/deekeep/bin/deekeep-mail-setup.sh` (compte
+  Gmail et **mot de passe d'application** Google, saisis au clavier, section
+  `Mail` de `secrets.json` ; un e-mail d'essai part). Sans cette configuration,
+  l'écran de connexion renvoie vers l'administrateur.
+- Page **Administration** (administrateurs seulement) : créer un compte (adresse
+  e-mail, mot de passe de 8 caractères au moins), choisir son rôle, les pages qu'il
   voit (Musique, Bibliothèque, Réencoder, Organiser, Qualité, Diagnostic,
   Historique, Paramètres) et ses droits (**Télécharger**, **Supprimer**),
   le désactiver, changer son mot de passe, le supprimer.
@@ -154,12 +179,9 @@ configuration ni aux bases.
 - Les droits sont vérifiés par la passerelle à chaque requête (table
   `Api/Permissions.cs`) : une modification s'applique en quelques secondes,
   un compte désactivé ou supprimé est déconnecté aussitôt.
-- Connexion : le champ « Nom d'utilisateur » laissé vide vaut `deekeep`
-  (installations antérieures). Un compte sans la page Paramètres se
-  déconnecte depuis la barre latérale ; son mot de passe se change par un
-  administrateur.
-- Mot de passe perdu : `sudo sh /opt/deekeep/bin/deekeep-reset-password.sh [nom]`
-  (`deekeep` par défaut) demande le nouveau mot de passe au clavier et réactive
+- **Se déconnecter** : bouton de la barre latérale (et carte Compte des Paramètres).
+- Sans e-mail (envoi non configuré, ou boîte perdue) :
+  `sudo sh /opt/deekeep/bin/deekeep-reset-password.sh <adresse>` demande le nouveau mot de passe au clavier et réactive
   le compte ; la passerelle est arrêtée quelques secondes. Le compte garde son
   identifiant, donc sa bibliothèque personnelle. Ne **pas** supprimer les
   comptes (`DELETE FROM users`) pour revenir à l'écran de premier accès : le

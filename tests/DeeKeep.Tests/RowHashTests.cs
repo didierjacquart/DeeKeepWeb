@@ -42,7 +42,10 @@ public class RowHashTests
         using var conn = DeeKeepDb.OpenPath(path, readOnly: true, 5000);
         var failures = new List<string>();
         var total = 0;
-        foreach (var spec in Schema.TableOrder)
+        // Une base desktop plus ancienne n'a pas toutes les tables (ex. « archive ») : seules les présentes sont vérifiées.
+        var tables = conn.QueryRows("SELECT name FROM sqlite_master WHERE type = 'table'")
+            .Select(r => r.Str("name")).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var spec in Schema.TableOrder.Where(s => tables.Contains(s.Name)))
         {
             foreach (var row in conn.QueryRows($"SELECT * FROM {spec.Name}"))
             {

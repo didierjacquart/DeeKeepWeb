@@ -55,7 +55,7 @@ public sealed class UsbSyncDisk(IOptionsMonitor<UsbSyncOptions> options, DeeKeep
     public bool UsbPresent()
     {
         var root = UsbRoot;
-        if (root is null) return false;
+        if (root is null || EjectedDevice is not null) return false;
         try
         {
             if (!Directory.Exists(root)) return false;
@@ -70,7 +70,20 @@ public sealed class UsbSyncDisk(IOptionsMonitor<UsbSyncOptions> options, DeeKeep
 
     public bool LibraryPresent() => LibraryRoot is { } root && Directory.Exists(root);
 
-    private static bool IsMountPoint(string path)
+    /// <summary>
+    /// Périphérique du disque éjecté depuis l'application (ex. <c>/dev/sda1</c>), null sinon. Tant qu'il est
+    /// renseigné, le disque compte comme absent ; le montage automatique est réarmé au débranchement.
+    /// </summary>
+    public string? EjectedDevice { get; private set; }
+
+    public void MarkEjected(string device) => EjectedDevice = device;
+
+    public void ClearEjected() => EjectedDevice = null;
+
+    private static bool IsMountPoint(string path) => MountSource(path) is not null;
+
+    /// <summary>Périphérique monté sur <paramref name="path"/> (hors montage automatique en attente), ou null.</summary>
+    public static string? MountSource(string path)
     {
         try
         {
@@ -79,11 +92,11 @@ public sealed class UsbSyncDisk(IOptionsMonitor<UsbSyncOptions> options, DeeKeep
             {
                 var parts = line.Split(' ');
                 if (parts.Length < 3) continue;
-                if (Unescape(parts[1]) == target && parts[2] != "autofs") return true;
+                if (Unescape(parts[1]) == target && parts[2] != "autofs") return Unescape(parts[0]);
             }
         }
         catch (IOException) { }
-        return false;
+        return null;
     }
 
     private static string Unescape(string mountField) =>

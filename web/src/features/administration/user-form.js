@@ -3,9 +3,12 @@ import { PAGES, PAGE_KEYS } from '../../core/auth/permissions';
 /** Longueur minimale d'un mot de passe (vérifiée aussi par le serveur). */
 export const MIN_PASSWORD = 8;
 
+/** Forme d'une adresse e-mail (même règle que le serveur). */
+const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 /**
  * @typedef {object} UserForm
- * @property {string} name
+ * @property {string} name adresse e-mail
  * @property {string} password
  * @property {string} confirm
  * @property {'admin' | 'user'} role
@@ -65,7 +68,9 @@ export function passwordError(password, confirm) {
  */
 export function formError(form, creating) {
   if (creating) {
-    if (!form.name.trim()) return "Le nom d'utilisateur est obligatoire.";
+    const email = form.name.trim();
+    if (!email) return "L'adresse e-mail est obligatoire.";
+    if (!EMAIL.test(email)) return 'Adresse e-mail invalide.';
     const pwd = passwordError(form.password, form.confirm);
     if (pwd) return pwd;
   }

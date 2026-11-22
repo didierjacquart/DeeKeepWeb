@@ -43,27 +43,66 @@ describe('AuthService', () => {
       'fetch',
       vi.fn(() => reply(401, {})),
     );
-    await expect(service.login('faux')).resolves.toBe("Nom d'utilisateur ou mot de passe incorrect.");
+    await expect(service.login('moi@example.com', 'faux')).resolves.toBe('Adresse e-mail ou mot de passe incorrect.');
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.resolve(new Response('"Trop court"', { status: 400 }))),
     );
-    await expect(service.setup('123')).resolves.toBe('Trop court');
+    await expect(service.setup('moi@example.com', '123')).resolves.toBe('Trop court');
     vi.stubGlobal(
       'fetch',
       vi.fn(() => Promise.reject(new TypeError('Failed to fetch'))),
     );
-    await expect(service.login('x')).resolves.toBe('Serveur injoignable.');
+    await expect(service.login('moi@example.com', 'x')).resolves.toBe('Serveur injoignable.');
   });
 
   it('rend null et rafraîchit la session quand la connexion réussit', async () => {
     const fetch = vi.fn(url => (url === '/auth/me' ? reply(200, session()) : reply(200, {})));
     vi.stubGlobal('fetch', fetch);
     const service = new AuthService();
-    await expect(service.login('bon')).resolves.toBeNull();
+    await expect(service.login('moi@example.com', 'bon')).resolves.toBeNull();
     expect(fetch.mock.calls.map(c => c[0])).toEqual(['/auth/login', '/auth/me']);
-    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ password: 'bon' });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ user: 'moi@example.com', password: 'bon' });
     expect(service.state.session).toEqual(session());
+  });
+
+  it('demande un code et rend le délai de renvoi, ou le refus du serveur', async () => {
+    const service = new AuthService();
+    const fetch = vi.fn(() => reply(200, { resendAfter: 30, expiresIn: 900 }));
+    vi.stubGlobal('fetch', fetch);
+    await expect(service.requestCode('moi@example.com')).resolves.toEqual({ error: null, resendAfter: 30 });
+    expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ email: 'moi@example.com' });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => reply(429, { error: 'Patientez 12 s avant de redemander un code.', retryAfter: 12 })),
+    );
+    await expect(service.requestCode('moi@example.com')).resolves.toEqual({
+      error: 'Patientez 12 s avant de redemander un code.',
+      resendAfter: 12,
+    });
+  });
+
+  it('valide le code puis termine : session relue seulement si connecté', async () => {
+    const service = new AuthService();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.resolve(new Response('"Code incorrect."', { status: 400 }))),
+    );
+    await expect(service.checkCode('moi@example.com', '000000')).resolves.toBe('Code incorrect.');
+
+    const fetch = vi.fn(url => (url === '/auth/me' ? reply(200, session()) : reply(200, { status: 'signedIn' })));
+    vi.stubGlobal('fetch', fetch);
+    await expect(service.complete('moi@example.com', '123456', 'motdepasse')).resolves.toMatchObject({
+      error: null,
+      status: 'signedIn',
+    });
+    expect(fetch.mock.calls.map(c => c[0])).toEqual(['/auth/complete', '/auth/me']);
+
+    const pending = vi.fn(() => reply(200, { status: 'pending', message: 'En attente' }));
+    vi.stubGlobal('fetch', pending);
+    await expect(service.complete('x@example.com', '123456', 'motdepasse')).resolves.toMatchObject({ status: 'pending' });
+    expect(pending.mock.calls.map(c => c[0])).toEqual(['/auth/complete']);
   });
 });
 

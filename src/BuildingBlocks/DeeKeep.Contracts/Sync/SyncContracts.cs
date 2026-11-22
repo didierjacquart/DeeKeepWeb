@@ -28,7 +28,8 @@ public sealed record UsbSyncStatus(
     int PendingDeletions,
     JobDto? Running,
     UsbSyncSummary? Last,
-    string? Problem);
+    string? Problem,
+    bool Ejected = false);
 
 public static class SyncJobTypes
 {
@@ -42,6 +43,12 @@ public sealed class SyncClient(HttpClient http) : ServiceClient(http, ServiceNam
 
     /// <summary>Lance une synchronisation (ou rend celle qui tourne déjà).</summary>
     public Task<JobDto> RunAsync(CancellationToken ct = default) => PostAsync<JobDto>("/api/sync/run", null, ct);
+
+    /// <summary>Éjecte le disque (démontage propre) ; rend l'état à jour.</summary>
+    public Task<UsbSyncStatus> EjectAsync(CancellationToken ct = default) => PostAsync<UsbSyncStatus>("/api/sync/eject", null, ct);
+
+    /// <summary>Remonte un disque éjecté resté branché.</summary>
+    public Task<UsbSyncStatus> MountAsync(CancellationToken ct = default) => PostAsync<UsbSyncStatus>("/api/sync/mount", null, ct);
 }
 
 // ---------------------------------------------------------------- corbeille de la bibliothèque (Library)

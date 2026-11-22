@@ -64,6 +64,25 @@ su -s /bin/sh deekeep -c "touch '$USB/.deekeep-w' && rm '$USB/.deekeep-w'" || { 
 # L'utilisateur du bureau garde l'accès en écriture au disque (groupe deekeep).
 for u in $(getent group sudo | cut -d: -f4 | tr ',' ' '); do usermod -aG deekeep "$u"; done
 
+echo "== Éjection depuis l'application"
+# Le service (utilisateur deekeep) peut arrêter et relancer ces deux unités, et elles seules :
+# « Éjecter » démonte proprement le disque, le montage automatique est réarmé au débranchement.
+UNIT=$(systemd-escape -p "$USB")
+UNIT_JS=$(printf '%s' "$UNIT" | sed 's/\\/\\\\/g')
+mkdir -p /etc/polkit-1/rules.d
+cat > /etc/polkit-1/rules.d/50-deekeep-usb.rules <<EOF
+// DeeKeep : éjecter et remonter le disque USB ($USB) depuis l'application.
+polkit.addRule(function (action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" && subject.user == "deekeep") {
+        var unit = action.lookup("unit");
+        var verb = action.lookup("verb");
+        if ((unit == "$UNIT_JS.mount" || unit == "$UNIT_JS.automount") && (verb == "start" || verb == "stop")) {
+            return polkit.Result.YES;
+        }
+    }
+});
+EOF
+
 echo "== Services liés aux montages"
 mkdir -p /etc/systemd/system/deekeep@.service.d
 cat > /etc/systemd/system/deekeep@.service.d/music.conf <<EOF

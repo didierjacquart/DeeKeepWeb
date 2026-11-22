@@ -25,6 +25,23 @@ export function useAdminUsers() {
     return r.error ?? null;
   };
 
+  /** Valide un compte inscrit par lui-même : il est activé avec les droits qu'il a déjà. */
+  const approve = async user =>
+    (
+      await api.mutate(
+        UPDATE_USER,
+        {
+          id: user.id,
+          role: user.role,
+          pages: user.pages,
+          canDownload: user.canDownload,
+          canDelete: user.canDelete,
+          disabled: false,
+        },
+        { ...now, label: 'Valider un compte' },
+      )
+    ).error ?? null;
+
   const resetPassword = async (id, password) =>
     (await api.mutate(RESET_PASSWORD, { id, password }, { ...now, label: 'Changer un mot de passe' })).error ?? null;
 
@@ -38,6 +55,7 @@ export function useAdminUsers() {
     stale: state.stale,
     create,
     update,
+    approve,
     resetPassword,
     remove,
   };

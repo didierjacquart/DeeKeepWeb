@@ -28,6 +28,17 @@ public static class StorageService
         services.AddJobHandler<ArchiveCheckHandler>(StorageJobTypes.Check);
         services.AddJobHandler<ArchiveUsageHandler>(StorageJobTypes.Usage);
         services.AddUsbSync(configuration);
+
+        // Archivage automatique des titres écrits dans la bibliothèque, et passage quotidien.
+        services.Configure<ArchiveAutoOptions>(configuration.GetSection("Archive"));
+        services.AddSingleton<ArchiveAuto>();
+        services.AddHostedService(sp => sp.GetRequiredService<ArchiveAuto>());
+        services.AddEventSubscription(ServiceNames.Library, (sp, evt, _) =>
+        {
+            if (evt.Data?.Deserialize<TracksChangedEvent>(JsonDefaults.Options) is { } changed && ArchiveAuto.IsFileWrite(changed.Reason))
+                sp.GetRequiredService<ArchiveAuto>().Add(changed.Paths);
+            return Task.CompletedTask;
+        }, durable: false, EventTypes.TracksChanged);
         return services;
     }
 
@@ -78,7 +89,7 @@ public static class StorageService
         return app;
     }
 
-    private static JobDto Enqueue(JobStore jobs, string type, string title, object? payload) =>
+    internal static JobDto Enqueue(JobStore jobs, string type, string title, object? payload) =>
         jobs.Enqueue(new EnqueueJobRequest(type, title, payload is null ? null : JsonSerializer.SerializeToNode(payload, JsonDefaults.Options),
             GroupKey: GroupKey, MaxAttempts: 1));
 

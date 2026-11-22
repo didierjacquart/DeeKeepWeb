@@ -220,6 +220,61 @@ public sealed class OrganizeEngine(OrganizeStore store, SettingsStore settings, 
     }
 
     /// <summary>
+    /// Lit d'avance, en parallèle, le débit des exemplaires de doublons (fin de la tâche d'analyse) :
+    /// sans cela le premier calcul du plan les lirait un par un, plus de deux minutes pour quelques
+    /// centaines de doublons sur un partage réseau, bien au-delà du délai d'une requête. Les groupes
+    /// de doublons dépendent des options : ceux des options enregistrées sont relevés, avec et sans
+    /// dossier par album. Rend le nombre de fichiers lus.
+    /// </summary>
+    public int PrefetchQualities(Guid sessionId, string root, int workers, Action<int, int> progress, CancellationToken ct)
+    {
+        var entries = store.Entries(sessionId);
+        var needed = new List<OrganizeEntry>();
+        var seen = new HashSet<int>();
+        var real = Environment(sessionId);
+        var collect = new PlanEnvironment
+        {
+            Quality = e =>
+            {
+                if (e.Bitrate is null && seen.Add(e.Index)) needed.Add(e);
+                return (0, e.Size);
+            },
+            ArtistFolderCount = real.ArtistFolderCount,
+            TargetFormat = real.TargetFormat,
+        };
+        var saved = OrganizePlanner.Normalize(LoadOptions()) with { Dedup = true };
+        foreach (var album in new[] { saved.Album, !saved.Album })
+        {
+            ct.ThrowIfCancellationRequested();
+            OrganizePlanner.BuildPlan(entries, root, saved with { Album = album }, collect);
+        }
+        if (needed.Count == 0) return 0;
+
+        var done = 0;
+        progress(0, needed.Count);
+        Parallel.ForEach(needed, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, workers), CancellationToken = ct }, entry =>
+        {
+            try
+            {
+                var info = new FileInfo(entry.Path);
+                if (info.Exists)
+                {
+                    entry.Size = info.Length;
+                    entry.Bitrate = AudioTags.Read(entry.Path, withProperties: true, withCover: false).Bitrate;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                logger.LogDebug(ex, "Débit illisible : {Path}", entry.Path);
+            }
+            var n = Interlocked.Increment(ref done);
+            if (n % 20 == 0 || n == needed.Count) progress(n, needed.Count);
+        });
+        store.SaveBitrates(sessionId, needed.Where(e => e.Bitrate is not null));
+        return needed.Count;
+    }
+
+    /// <summary>
     /// <c>artist_folder_count</c>. Le dossier de l'artiste est cherché sans tenir compte de la
     /// casse (sous Linux, « madonna » existant doit compter pour « Madonna »).
     /// </summary>

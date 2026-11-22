@@ -14,6 +14,9 @@ public static class SyncApi
         g.MapGet("/status", (SyncClient client, CancellationToken ct) => client.GetStatusAsync(ct));
         // « Synchroniser » : tâche usbsync.run (rend celle qui tourne déjà le cas échéant).
         g.MapPost("/run", (SyncClient client, CancellationToken ct) => client.RunAsync(ct));
+        // « Éjecter » : démontage propre, le disque peut être débranché ; « Remonter » s'il est resté branché.
+        g.MapPost("/eject", (SyncClient client, CancellationToken ct) => client.EjectAsync(ct));
+        g.MapPost("/mount", (SyncClient client, CancellationToken ct) => client.MountAsync(ct));
     }
 
     /// <summary>Corbeille de la bibliothèque : fichiers supprimés depuis l'application, récupérables pendant la durée réglée.</summary>

@@ -3,13 +3,14 @@ import { endpoint } from '../../core/api/endpoints';
 /**
  * @typedef {object} AdminUser
  * @property {string} id
- * @property {string} name
+ * @property {string} name adresse e-mail du compte
  * @property {'admin' | 'user'} role
  * @property {string[]} pages
  * @property {boolean} canDownload
  * @property {boolean} canDelete
  * @property {boolean} disabled
  * @property {number} createdAt
+ * @property {boolean} pending inscrit lui-même, en attente de validation (et désactivé)
  */
 
 export const USERS = endpoint('AdminUsers', 'users', 'GET /api/admin/users');

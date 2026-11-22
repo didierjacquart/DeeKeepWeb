@@ -73,6 +73,15 @@ public sealed class OrganizeAnalyzeHandler(OrganizeStore store, OrganizeEngine e
                 context.Report(read, total, $"Analyse en cours… {read} / {total} fichiers lus");
             }
             store.TrimEntries(sessionId, total);
+
+            // Débits des doublons lus maintenant, en parallèle : le premier affichage du plan reste immédiat.
+            if (total > 0)
+            {
+                context.Message("Lecture du débit des doublons…");
+                await Task.Run(() => engine.PrefetchQualities(sessionId, root, workers,
+                    (done, count) => context.Report(done, count, $"Doublons : débit lu pour {done} / {count} fichiers"), ct), ct);
+            }
+
             store.UpdateSession(sessionId, state: "done", read: total,
                 message: total == 0 ? "Aucun fichier audio trouvé dans ce dossier." : $"{total} fichier(s) analysé(s)");
             store.DeleteOtherSessions(sessionId);

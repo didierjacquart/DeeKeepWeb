@@ -42,46 +42,118 @@ describe('garde des pages', () => {
 });
 
 describe('LoginPage', () => {
-  it('se connecte et rejoint l’accueil', async () => {
-    mockApi({});
-    const login = vi.spyOn(auth, 'login').mockResolvedValue(null);
-    const { user, router } = renderWithRouter(<LoginPage />, {
-      route: '/login',
-      path: '/login',
+  const open = (route = '/login', mailEnabled = true) => {
+    auth.setState({ session: session({ mailEnabled }) });
+    // La page relit l'état du serveur à l'ouverture.
+    vi.spyOn(auth, 'refresh').mockImplementation(async () => auth.state.session);
+    return renderWithRouter(<LoginPage />, {
+      route,
+      path: route,
       extraRoutes: [{ path: '/', element: <p>Accueil</p> }],
     });
-    expect(screen.getByLabelText("Nom d'utilisateur")).toHaveFocus();
+  };
+
+  it('se connecte avec son adresse e-mail et rejoint l’accueil', async () => {
+    const login = vi.spyOn(auth, 'login').mockResolvedValue(null);
+    const { user, router } = open();
+    expect(screen.getByRole('tab', { name: 'Connexion' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByLabelText('Adresse e-mail')).toHaveFocus();
+    await user.type(screen.getByLabelText('Adresse e-mail'), ' moi@example.com ');
     await user.type(screen.getByLabelText('Mot de passe'), 'secret');
     await user.click(screen.getByRole('button', { name: 'Se connecter' }));
-    // Nom laissé vide : le serveur prend le compte « deekeep » (installations antérieures).
-    expect(login).toHaveBeenCalledWith('secret', undefined);
+    expect(login).toHaveBeenCalledWith('moi@example.com', 'secret');
     expect(router.state.location.pathname).toBe('/');
   });
 
-  it('se connecte sous un nom d’utilisateur', async () => {
-    const login = vi.spyOn(auth, 'login').mockResolvedValue(null);
-    const { user } = renderWithRouter(<LoginPage />, {
-      route: '/login',
-      path: '/login',
-      extraRoutes: [{ path: '/', element: <p>Accueil</p> }],
-    });
-    await user.type(screen.getByLabelText("Nom d'utilisateur"), ' invite ');
-    await user.type(screen.getByLabelText('Mot de passe'), 'secret');
-    await user.keyboard('{Enter}');
-    expect(login).toHaveBeenCalledWith('secret', 'invite');
-  });
-
   it('affiche le refus du serveur', async () => {
-    vi.spyOn(auth, 'login').mockResolvedValue('Mot de passe incorrect.');
-    const { user } = renderWithRouter(<LoginPage />, { route: '/login', path: '/login' });
+    vi.spyOn(auth, 'login').mockResolvedValue('Adresse e-mail ou mot de passe incorrect.');
+    const { user } = open();
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'moi@example.com');
     await user.type(screen.getByLabelText('Mot de passe'), 'faux');
     await user.keyboard('{Enter}');
-    expect(await screen.findByRole('alert')).toHaveTextContent('Mot de passe incorrect.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Adresse e-mail ou mot de passe incorrect.');
+  });
+
+  it('inscription : adresse, code reçu, puis deux saisies du mot de passe', async () => {
+    const requestCode = vi.spyOn(auth, 'requestCode').mockResolvedValue({ error: null, resendAfter: 30 });
+    const checkCode = vi.spyOn(auth, 'checkCode').mockResolvedValue(null);
+    const complete = vi
+      .spyOn(auth, 'complete')
+      .mockResolvedValue({ error: null, status: 'pending', message: 'Compte en attente de validation par un administrateur.' });
+    const { user } = open();
+    await user.click(screen.getByRole('tab', { name: 'Inscription' }));
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'nouveau@example.com');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    expect(requestCode).toHaveBeenCalledWith('nouveau@example.com');
+
+    // L'application bascule sur la saisie du code, renvoi bloqué le temps du délai.
+    const codeInput = await screen.findByLabelText('Code reçu par e-mail');
+    expect(codeInput).toHaveFocus();
+    expect(screen.getByText(/Code envoyé à nouveau@example.com/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Renvoyer un code \(\d+ s\)/ })).toBeDisabled();
+    await user.type(codeInput, '123456');
+    await user.click(screen.getByRole('button', { name: 'Valider le code' }));
+    expect(checkCode).toHaveBeenCalledWith('nouveau@example.com', '123456');
+
+    const first = await screen.findByLabelText('Nouveau mot de passe');
+    await user.type(first, 'motdepasse');
+    await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'autre-mdp');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le mot de passe' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Les deux saisies diffèrent.');
+    expect(complete).not.toHaveBeenCalled();
+
+    await user.clear(screen.getByLabelText('Confirmer le mot de passe'));
+    await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'motdepasse');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le mot de passe' }));
+    expect(complete).toHaveBeenCalledWith('nouveau@example.com', '123456', 'motdepasse');
+    expect(await screen.findByRole('status')).toHaveTextContent('Compte en attente de validation');
+  });
+
+  it('un code faux reste sur sa saisie ; renvoyer un code est possible après le délai', async () => {
+    const requestCode = vi.spyOn(auth, 'requestCode').mockResolvedValue({ error: null, resendAfter: 0 });
+    vi.spyOn(auth, 'checkCode').mockResolvedValue('Code incorrect.');
+    const { user } = open();
+    await user.click(screen.getByRole('tab', { name: 'Inscription' }));
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'nouveau@example.com');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par e-mail'), '000000');
+    await user.click(screen.getByRole('button', { name: 'Valider le code' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Code incorrect.');
+    expect(screen.getByLabelText('Code reçu par e-mail')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Renvoyer un code' }));
+    expect(requestCode).toHaveBeenCalledTimes(2);
+  });
+
+  it('mot de passe oublié : même parcours, puis connexion directe', async () => {
+    vi.spyOn(auth, 'requestCode').mockResolvedValue({ error: null, resendAfter: 30 });
+    vi.spyOn(auth, 'checkCode').mockResolvedValue(null);
+    vi.spyOn(auth, 'complete').mockResolvedValue({ error: null, status: 'signedIn' });
+    const { user, router } = open();
+    await user.click(screen.getByRole('button', { name: 'Mot de passe oublié ?' }));
+    expect(screen.getByText(/Mot de passe oublié : saisissez votre adresse/)).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'moi@example.com');
+    await user.click(screen.getByRole('button', { name: 'Recevoir un code' }));
+    await user.type(await screen.findByLabelText('Code reçu par e-mail'), '654321');
+    await user.click(screen.getByRole('button', { name: 'Valider le code' }));
+    await user.type(await screen.findByLabelText('Nouveau mot de passe'), 'nouveau-mdp');
+    await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'nouveau-mdp');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer le mot de passe' }));
+    await vi.waitFor(() => expect(router.state.location.pathname).toBe('/'));
+  });
+
+  it('sans envoi d’e-mails configuré, l’inscription renvoie vers l’administrateur', async () => {
+    const requestCode = vi.spyOn(auth, 'requestCode');
+    const { user } = open('/login', false);
+    await user.click(screen.getByRole('tab', { name: 'Inscription' }));
+    expect(screen.getByText(/L'envoi d'e-mails n'est pas configuré/)).toBeInTheDocument();
+    expect(requestCode).not.toHaveBeenCalled();
   });
 
   it('à la première visite, vérifie que les deux saisies concordent', async () => {
     const setup = vi.spyOn(auth, 'setup').mockResolvedValue(null);
-    const { user } = renderWithRouter(<LoginPage />, { route: '/setup', path: '/setup' });
+    const { user } = open('/setup');
+    await user.type(screen.getByLabelText('Adresse e-mail'), 'admin@example.com');
     await user.type(screen.getByLabelText('Nouveau mot de passe'), 'motdepasse');
     await user.type(screen.getByLabelText('Confirmer le mot de passe'), 'autre');
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }));

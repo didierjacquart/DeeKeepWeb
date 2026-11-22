@@ -59,7 +59,12 @@ public static class PageKeys
     }
 }
 
-/// <summary>Compte tel que le voient l'API et les règles d'accès (jamais le haché du mot de passe).</summary>
+/// <summary>
+/// Compte tel que le voient l'API et les règles d'accès (jamais le haché du mot de passe).
+/// <see cref="Name"/> est l'adresse e-mail du compte (les comptes antérieurs gardent leur nom).
+/// <see cref="Pending"/> : inscrit lui-même, en attente de validation par un administrateur
+/// (il est alors aussi désactivé).
+/// </summary>
 public sealed record AppUser(
     string Id,
     string Name,
@@ -68,7 +73,8 @@ public sealed record AppUser(
     bool CanDownload,
     bool CanDelete,
     bool Disabled,
-    double CreatedAt)
+    double CreatedAt,
+    bool Pending = false)
 {
     public bool IsAdmin => Role == Roles.Admin;
 
@@ -78,6 +84,29 @@ public sealed record AppUser(
     public static readonly AppUser Anonymous =
         new("", "", Roles.Admin, PageKeys.All, CanDownload: true, CanDelete: true, Disabled: false, CreatedAt: 0);
 }
+
+/// <summary>Adresses e-mail des comptes : forme canonique (minuscules, sans espaces) et contrôle de forme.</summary>
+public static partial class Emails
+{
+    public const int MaxLength = 254;
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
+    private static partial System.Text.RegularExpressions.Regex Shape();
+
+    /// <summary>Adresse canonique, ou <see cref="ArgumentException"/> si elle n'a pas la forme d'un e-mail.</summary>
+    public static string Normalize(string? email)
+    {
+        var value = (email ?? "").Trim().ToLowerInvariant();
+        if (value.Length == 0) throw new ArgumentException("L'adresse e-mail est obligatoire.");
+        if (value.Length > MaxLength || !Shape().IsMatch(value)) throw new ArgumentException("Adresse e-mail invalide.");
+        return value;
+    }
+
+    public static bool LooksLikeEmail(string? value) => value is not null && Shape().IsMatch(value);
+}
+
+/// <summary>Issue d'une inscription ou d'un mot de passe oublié validé par code.</summary>
+public sealed record RegisterResult(AppUser User, bool Created);
 
 /// <summary>Droits d'un compte, à la création ou à la modification.</summary>
 public sealed record UserRights(string Role, IReadOnlyList<string>? Pages, bool CanDownload, bool CanDelete, bool Disabled);
@@ -94,7 +123,8 @@ public sealed record UserRights(string Role, IReadOnlyList<string>? Pages, bool 
 public sealed class UserStore(IOptions<DatabaseOptions> options)
 {
     public const int MinPasswordLength = 8;
-    private const int MaxNameLength = 64;
+    /// <summary>Pages d'un compte inscrit par lui-même, une fois validé (l'administrateur les ajuste).</summary>
+    public static readonly IReadOnlyList<string> SelfServicePages = [PageKeys.Musique, PageKeys.Bibliotheque];
     private static readonly TimeSpan CacheLifetime = TimeSpan.FromSeconds(5);
 
     private readonly ConcurrentDictionary<string, (AppUser? User, DateTime At)> _cache = new(StringComparer.OrdinalIgnoreCase);
@@ -142,6 +172,8 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
             conn.Execute("ALTER TABLE users ADD COLUMN can_delete INTEGER NOT NULL DEFAULT 1", transaction: tx);
         if (!columns.Contains("disabled"))
             conn.Execute("ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0", transaction: tx);
+        if (!columns.Contains("pending"))
+            conn.Execute("ALTER TABLE users ADD COLUMN pending INTEGER NOT NULL DEFAULT 0", transaction: tx);
         // Identifiant stable (adresses de l'API d'administration, cookie) : un compte
         // supprimé puis recréé sous le même nom n'hérite pas des sessions de l'ancien.
         foreach (var name in conn.Query<string>("SELECT name FROM users WHERE id IS NULL", transaction: tx))
@@ -154,7 +186,7 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
 
     private const string SelectColumns =
         "id AS Id, name AS Name, role AS Role, pages AS Pages, can_download AS CanDownload, can_delete AS CanDelete, " +
-        "disabled AS Disabled, created_at AS CreatedAt";
+        "disabled AS Disabled, created_at AS CreatedAt, pending AS Pending";
 
     private sealed class Row
     {
@@ -166,9 +198,10 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
         public long CanDelete { get; set; }
         public long Disabled { get; set; }
         public double CreatedAt { get; set; }
+        public long Pending { get; set; }
 
         public AppUser ToUser() => new(Id, Name, Roles.IsKnown(Role) ? Role! : Roles.User,
-            ReadPages(Pages), CanDownload != 0, CanDelete != 0, Disabled != 0, CreatedAt);
+            ReadPages(Pages), CanDownload != 0, CanDelete != 0, Disabled != 0, CreatedAt, Pending != 0);
 
         private static IReadOnlyList<string> ReadPages(string? json)
         {
@@ -189,6 +222,10 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
         using var conn = Open();
         return conn.ExecuteScalar<long>("SELECT COUNT(*) FROM users") > 0;
     }
+
+    /// <summary>Adresses des administrateurs actifs (avis des nouvelles inscriptions).</summary>
+    public IReadOnlyList<string> AdminEmails() =>
+        List().Where(u => u.IsAdmin && !u.Disabled && Emails.LooksLikeEmail(u.Name)).Select(u => u.Name).ToList();
 
     public IReadOnlyList<AppUser> List()
     {
@@ -237,9 +274,9 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
     }
 
     /// <summary>Premier compte (page d'accueil) : administrateur, seulement tant que la table est vide.</summary>
-    public AppUser? CreateFirst(string name, string password)
+    public AppUser? CreateFirst(string email, string password)
     {
-        name = CheckName(name);
+        var name = Emails.Normalize(email);
         CheckPassword(password);
         using var conn = Open();
         var inserted = conn.Execute(
@@ -250,9 +287,9 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
         return inserted == 0 ? null : FindByName(name);
     }
 
-    public AppUser Create(string name, string password, UserRights rights)
+    public AppUser Create(string email, string password, UserRights rights)
     {
-        name = CheckName(name);
+        var name = Emails.Normalize(email);
         CheckPassword(password);
         CheckRole(rights.Role);
         var pages = PageKeys.Normalize(rights.Pages);
@@ -274,6 +311,45 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
         return FindById(id)!;
     }
 
+    /// <summary>
+    /// Adresse dont la boîte a été prouvée par un code : nouveau mot de passe d'un compte existant
+    /// (mot de passe oublié), ou création d'un compte. Un compte créé ainsi attend la validation d'un
+    /// administrateur (désactivé, « en attente »), sauf le tout premier, administrateur d'office.
+    /// </summary>
+    public RegisterResult Register(string email, string password)
+    {
+        var name = Emails.Normalize(email);
+        CheckPassword(password);
+        var hash = Auth.HashPassword(password);
+        using var conn = Open();
+        using var tx = conn.BeginTransaction();
+        var id = conn.ExecuteScalar<string?>("SELECT id FROM users WHERE name = @name COLLATE NOCASE", new { name }, tx);
+        var created = id is null;
+        if (id is not null)
+        {
+            conn.Execute("UPDATE users SET password_hash = @hash WHERE id = @id", new { id, hash }, tx);
+        }
+        else
+        {
+            id = NewId();
+            var first = conn.ExecuteScalar<long>("SELECT COUNT(*) FROM users", transaction: tx) == 0;
+            conn.Execute(
+                "INSERT INTO users (id, name, password_hash, created_at, role, pages, can_download, can_delete, disabled, pending) " +
+                "VALUES (@id, @name, @hash, @now, @role, @pages, 1, @delete, @off, @off)",
+                new
+                {
+                    id, name, hash, now = Clock.UnixNow(),
+                    role = first ? Roles.Admin : Roles.User,
+                    pages = JsonSerializer.Serialize(first ? PageKeys.All : SelfServicePages),
+                    delete = first,
+                    off = !first,
+                }, tx);
+        }
+        tx.Commit();
+        Invalidate();
+        return new RegisterResult(FindById(id)!, created);
+    }
+
     /// <summary>Change le rôle et les droits ; refuse de laisser l'application sans administrateur actif.</summary>
     public AppUser Update(string id, UserRights rights)
     {
@@ -286,7 +362,9 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
         if (IsActiveAdmin(current) && !staysActiveAdmin && OtherActiveAdmins(conn, tx, id) == 0)
             throw new InvalidOperationException("Il faut garder au moins un administrateur actif.");
         conn.Execute(
-            "UPDATE users SET role = @role, pages = @pages, can_download = @download, can_delete = @delete, disabled = @disabled WHERE id = @id",
+            // Activer un compte en attente le valide.
+            "UPDATE users SET role = @role, pages = @pages, can_download = @download, can_delete = @delete, disabled = @disabled, " +
+            "pending = CASE WHEN @disabled THEN pending ELSE 0 END WHERE id = @id",
             new { id, role = rights.Role, pages = JsonSerializer.Serialize(pages), download = rights.CanDownload, delete = rights.CanDelete, disabled = rights.Disabled }, tx);
         tx.Commit();
         Invalidate();
@@ -326,15 +404,6 @@ public sealed class UserStore(IOptions<DatabaseOptions> options)
 
     private static long OtherActiveAdmins(SqliteConnection conn, SqliteTransaction tx, string id) =>
         conn.ExecuteScalar<long>("SELECT COUNT(*) FROM users WHERE role = @role AND disabled = 0 AND id <> @id", new { role = Roles.Admin, id }, tx);
-
-    private static string CheckName(string? name)
-    {
-        var trimmed = name?.Trim() ?? "";
-        if (trimmed.Length == 0) throw new ArgumentException("Le nom d'utilisateur est obligatoire.");
-        if (trimmed.Length > MaxNameLength) throw new ArgumentException($"Le nom d'utilisateur dépasse {MaxNameLength} caractères.");
-        if (trimmed.Any(char.IsControl)) throw new ArgumentException("Le nom d'utilisateur contient des caractères invalides.");
-        return trimmed;
-    }
 
     public static void CheckPassword(string? password)
     {

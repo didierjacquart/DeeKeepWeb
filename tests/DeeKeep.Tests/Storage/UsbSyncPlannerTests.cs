@@ -130,6 +130,14 @@ public class UsbSyncPlannerTests
         Assert.Equal(UsbSyncAfterChanges.Decision.Skip, UsbSyncAfterChanges.Decide(true, false, null));
     }
 
+    [Theory]
+    [InlineData("/mnt/deekeep-usb", @"mnt-deekeep\x2dusb")]
+    [InlineData("/mnt/deekeep-usb/", @"mnt-deekeep\x2dusb")]
+    [InlineData("/media/Ma Musique", @"media-Ma\x20Musique")]
+    [InlineData("/mnt/.cache", @"mnt-.cache")]
+    public void Systemd_unit_names_match_systemd_escape(string path, string unit) =>
+        Assert.Equal(unit, UsbEjector.UnitName(path));
+
     [Fact]
     public void Relative_paths_cannot_escape_the_root()
     {

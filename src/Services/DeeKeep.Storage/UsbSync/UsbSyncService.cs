@@ -21,6 +21,7 @@ public static class UsbSyncService
         services.Configure<UsbSyncOptions>(configuration.GetSection("Sync"));
         services.AddSingleton<UsbSyncDisk>();
         services.AddSingleton<UsbSyncStore>();
+        services.AddSingleton<UsbEjector>();
         services.AddJobHandler<UsbSyncHandler>(SyncJobTypes.Run);
         services.AddHostedService<UsbSyncWatcher>();
 
@@ -84,20 +85,26 @@ public static class UsbSyncService
             if (!disk.UsbPresent()) return Results.BadRequest("Disque USB absent : branchez-le, la synchronisation partira d'elle-même.");
             return Results.Ok(Enqueue(jobs, "demande"));
         });
+        api.MapPost("/eject", async (UsbEjector ejector, UsbSyncDisk disk, UsbSyncStore store, JobStore jobs, CancellationToken ct) =>
+            await ejector.EjectAsync(ct) is { } error ? Results.BadRequest(error) : Results.Ok(Status(disk, store, jobs)));
+        api.MapPost("/mount", async (UsbEjector ejector, UsbSyncDisk disk, UsbSyncStore store, JobStore jobs, CancellationToken ct) =>
+            await ejector.MountAsync(ct) is { } error ? Results.BadRequest(error) : Results.Ok(Status(disk, store, jobs)));
         return app;
     }
 
     private static UsbSyncStatus Status(UsbSyncDisk disk, UsbSyncStore store, JobStore jobs)
     {
         var usbPresent = disk.Enabled && disk.UsbPresent();
+        var ejected = disk.EjectedDevice is not null;
         var libraryPresent = disk.LibraryPresent();
         var space = usbPresent ? disk.UsbSpace() : null;
         string? problem = !disk.Enabled ? "Synchronisation non configurée (Sync:UsbRoot)."
+            : ejected ? null
             : !usbPresent ? "Disque USB absent."
             : !libraryPresent ? $"Bibliothèque inaccessible ({disk.LibraryRoot ?? "dossier inconnu"})."
             : null;
         return new UsbSyncStatus(disk.Enabled, disk.UsbRoot, disk.LibraryRoot, usbPresent, libraryPresent, space?.Free, space?.Total,
-            store.TombstoneCount(), Active(jobs), store.LastSummary(), problem);
+            store.TombstoneCount(), Active(jobs), store.LastSummary(), problem, ejected);
     }
 
     private static JobDto? Active(JobStore jobs) => jobs.List(activeOnly: true, type: SyncJobTypes.Run).FirstOrDefault();
@@ -112,7 +119,7 @@ public static class UsbSyncService
 /// Surveille le disque USB : une synchronisation part quand il apparaît (branchement, ou
 /// démarrage du serveur disque branché) et chaque jour à l'heure prévue s'il est présent.
 /// </summary>
-public sealed class UsbSyncWatcher(UsbSyncDisk disk, JobStore jobs, ILogger<UsbSyncWatcher> logger) : BackgroundService
+public sealed class UsbSyncWatcher(UsbSyncDisk disk, JobStore jobs, UsbEjector ejector, ILogger<UsbSyncWatcher> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -122,12 +129,19 @@ public sealed class UsbSyncWatcher(UsbSyncDisk disk, JobStore jobs, ILogger<UsbS
         {
             // Laisse les autres services démarrer avant un premier passage.
             await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            // Une éjection d'avant le redémarrage du service a pu laisser le montage automatique arrêté.
+            if (disk.Enabled && OperatingSystem.IsLinux())
+            {
+                try { await ejector.MountAsync(stoppingToken); }
+                catch (Exception ex) when (ex is not OperationCanceledException) { logger.LogWarning(ex, "Réarmement du montage automatique"); }
+            }
             while (!stoppingToken.IsCancellationRequested)
             {
                 try
                 {
                     if (disk.Enabled)
                     {
+                        await ejector.RearmIfUnpluggedAsync(stoppingToken);
                         var present = await Task.Run(disk.UsbPresent, stoppingToken);
                         if (present && !wasPresent)
                         {

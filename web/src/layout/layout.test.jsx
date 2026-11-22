@@ -13,9 +13,9 @@ import { auth } from '../core/auth/auth';
 import { BOTTOM_NAV, MAIN_NAV, TOOLS_NAV, isToolPage, pageTitle, visibleNav } from './shell/nav-items';
 
 /** La coquille seule, sur toutes les adresses : la navigation change l'URL sans charger de page. */
-function renderShellWithPages(route) {
-  mockApi({ Jobs: { jobs: [] } });
-  return renderWithRouter(<Shell />, { route, path: '/*' });
+function renderShellWithPages(route, responses = {}) {
+  const server = mockApi({ Jobs: { jobs: [] }, ...responses });
+  return { server, ...renderWithRouter(<Shell />, { route, path: '/*' }) };
 }
 
 describe('nav-items', () => {
@@ -167,11 +167,32 @@ describe('navigation selon les droits', () => {
     expect(within(nav).getByRole('button', { name: /Se déconnecter/ })).toBeInTheDocument();
   });
 
-  it('montre l’administration à un administrateur', () => {
+  it('montre l’administration à un administrateur, et la déconnexion à tout compte', () => {
     auth.setState({ session: { ...limited, role: 'admin', pages: [] } });
     renderShellWithPages('/musique');
     expect(screen.getByRole('link', { name: /Administration/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Organiser/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Se déconnecter/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Se déconnecter/ })).toBeInTheDocument();
+  });
+
+  it('signale sur Administration les comptes à valider', async () => {
+    auth.setState({ session: { ...limited, role: 'admin', pages: [] } });
+    renderShellWithPages('/musique', {
+      AdminUsers: {
+        users: [
+          { id: 'a', name: 'admin@example.com', pending: false },
+          { id: 'b', name: 'b@example.com', pending: true },
+          { id: 'c', name: 'c@example.com', pending: true },
+        ],
+      },
+    });
+    const link = screen.getByRole('link', { name: /Administration/ });
+    expect(await within(link).findByLabelText('2 compte(s) à valider')).toHaveTextContent('2');
+  });
+
+  it('ne cherche pas les comptes à valider pour un simple utilisateur', () => {
+    auth.setState({ session: limited });
+    const { server } = renderShellWithPages('/musique');
+    expect(server.watch.mock.calls.filter(c => c[0]?.name === 'AdminUsers')).toEqual([]);
   });
 });

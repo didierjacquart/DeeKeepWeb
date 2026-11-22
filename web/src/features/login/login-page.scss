@@ -1,0 +1,57 @@
+.dk-login {
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--dk-glass);
+    button {
+      flex: 1;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--dk-faint);
+      font: 600 14px var(--dk-font);
+      padding: 10px 12px;
+      cursor: pointer;
+      min-height: 44px;
+      &.active {
+        color: var(--dk-primary);
+        border-bottom-color: var(--dk-primary);
+      }
+    }
+  }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    .dk-help {
+      margin: 0;
+    }
+  }
+  .code {
+    font-size: 22px;
+    letter-spacing: 0.3em;
+    text-align: center;
+  }
+  .row-links {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .link-btn {
+    align-self: center;
+    background: none;
+    border: none;
+    color: var(--dk-primary);
+    font: 600 13px var(--dk-font);
+    cursor: pointer;
+    padding: 8px 4px;
+    min-height: 40px;
+    &:disabled {
+      color: var(--dk-faint);
+      cursor: default;
+    }
+    &:hover:not(:disabled) {
+      text-decoration: underline;
+    }
+  }
+}
